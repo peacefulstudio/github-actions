@@ -1,0 +1,26 @@
+name: build-and-test
+
+on:
+  workflow_call:
+  push:
+    branches: [dev, stage, prod]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.7"
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            | tar xz actionlint
+          ./actionlint -version
+
+      - name: Lint workflow files
+        run: ./actionlint -color
