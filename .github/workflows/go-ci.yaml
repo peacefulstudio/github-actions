@@ -18,9 +18,11 @@ on:
         default: 'go cli'
       golangci-lint-version:
         description: >-
-          Version selector appended to `go install
-          github.com/golangci/golangci-lint/cmd/golangci-lint@<version>`.
-          Use a tag (e.g. `v1.61.0`) for reproducible runs.
+          Version selector for `go install <module>@<version>`. Values starting
+          with `v2` install from `github.com/golangci/golangci-lint/v2/cmd/golangci-lint`
+          (required for golangci-lint v2 config files); anything else installs
+          from `github.com/golangci/golangci-lint/cmd/golangci-lint` (v1). Pin a
+          tag (e.g. `v1.61.0` or `v2.12.2`) for reproducible runs.
         required: false
         type: string
         default: 'latest'
@@ -291,7 +293,12 @@ jobs:
         if: steps.discover.outputs.found == 'true'
         env:
           GOLANGCI_LINT_VERSION: ${{ inputs.golangci-lint-version }}
-        run: go install "github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}"
+        run: |
+          case "$GOLANGCI_LINT_VERSION" in
+            v2*) MODULE=github.com/golangci/golangci-lint/v2/cmd/golangci-lint ;;
+            *)   MODULE=github.com/golangci/golangci-lint/cmd/golangci-lint ;;
+          esac
+          go install "${MODULE}@${GOLANGCI_LINT_VERSION}"
 
       - name: Lint
         if: steps.discover.outputs.found == 'true'
