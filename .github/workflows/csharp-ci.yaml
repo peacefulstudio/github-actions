@@ -1,0 +1,269 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+
+name: CSharp CI
+
+on:
+  workflow_call:
+    secrets:
+      BOT_GITHUB_TOKEN:
+        description: >-
+          PAT or GitHub App token with `read:packages` for `dotnet restore`
+          against private NuGet feeds (e.g. GitHub Packages). Optional;
+          omit for public-only restores. Pass via `secrets: inherit` or an
+          explicit `secrets:` block on the caller.
+        required: false
+    inputs:
+      dotnet-version:
+        description: .NET SDK version passed to actions/setup-dotnet.
+        required: false
+        type: string
+        default: '10.0.x'
+      working-directory:
+        description: >-
+          Path (relative to the repo root) where the .NET workspace lives.
+          Used as the working directory for restore / build / test / pack.
+        required: false
+        type: string
+        default: '.'
+      os-list:
+        description: >-
+          JSON array of runner labels for the build-and-test matrix.
+          Examples: '["ubuntu-latest"]', '["ubuntu-latest","macos-latest","windows-latest"]'.
+          Coverage report generation (merge, summary, PR comment, job summary)
+          only runs on the `ubuntu-latest` shard; if your matrix excludes
+          `ubuntu-latest`, no coverage report will be produced.
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
+      test-project:
+        description: >-
+          Optional path (relative to working-directory) of a specific test
+          project or solution to pass to `dotnet test`. Empty runs the
+          workspace default (the .sln/.slnx in working-directory).
+        required: false
+        type: string
+        default: ''
+      test-filter:
+        description: >-
+          Argument forwarded to `dotnet test --filter`. Empty disables
+          filtering. Example: 'Category!=Integration'.
+        required: false
+        type: string
+        default: ''
+      coverage-pr-comment-header:
+        description: >-
+          Header used by marocchino/sticky-pull-request-comment so multiple
+          coverage comments on the same PR don't collide. Make this unique
+          per language / per repo (e.g. 'csharp-coverage').
+        required: false
+        type: string
+        default: 'csharp-coverage'
+      pack:
+        description: >-
+          Whether to run `dotnet pack` and upload the resulting .nupkg as a
+          workflow artifact. When true, `pack-project` is required.
+        required: false
+        type: boolean
+        default: false
+      pack-project:
+        description: >-
+          Path (relative to working-directory) of the project to pack.
+          Required when `pack` is true.
+        required: false
+        type: string
+        default: ''
+      pack-output:
+        description: >-
+          Path (relative to working-directory) of the directory where
+          `dotnet pack` writes .nupkg files. Must not start with `./` or
+          contain `..` segments — actions/upload-artifact rejects relative
+          pathing in its `path:` input. Validated at runtime.
+        required: false
+        type: string
+        default: 'artifacts'
+      artifact-name:
+        description: Name of the uploaded nupkg artifact.
+        required: false
+        type: string
+        default: 'nupkg'
+
+jobs:
+  build-and-test:
+    name: build-and-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.os-list) }}
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Restore
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          dotnet restore
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          dotnet build --configuration Release --no-restore
+
+      - name: Test with coverage
+        env:
+          TEST_PROJECT: ${{ inputs.test-project }}
+          TEST_FILTER: ${{ inputs.test-filter }}
+        run: |
+          set -euo pipefail
+          args=(test --configuration Release --no-build
+                --logger 'trx;LogFileName=test-results.trx'
+                --collect:"XPlat Code Coverage"
+                --results-directory ./coverage)
+          if [ -f coverlet.runsettings ]; then
+            args+=(--settings coverlet.runsettings)
+          fi
+          if [ -n "$TEST_FILTER" ]; then
+            args+=(--filter "$TEST_FILTER")
+          fi
+          if [ -n "$TEST_PROJECT" ]; then
+            args+=("$TEST_PROJECT")
+          fi
+          dotnet "${args[@]}"
+
+      - name: Merge coverage reports
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          cobertura_files=(coverage/*/coverage.cobertura.xml)
+          if [ ${#cobertura_files[@]} -eq 0 ]; then
+            echo "::error::No coverage.cobertura.xml files produced under coverage/ — did dotnet test collect coverage?"
+            exit 1
+          fi
+          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.10
+          reportgenerator \
+            "-reports:coverage/*/coverage.cobertura.xml" \
+            -targetdir:coverage/merged \
+            -reporttypes:Cobertura
+
+      - name: Code Coverage Summary Report
+        if: matrix.os == 'ubuntu-latest'
+        uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
+        with:
+          filename: '${{ inputs.working-directory }}/coverage/merged/Cobertura.xml'
+          badge: true
+          format: 'markdown'
+          output: 'both'
+
+      - name: Add Coverage PR Comment
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        with:
+          recreate: true
+          header: ${{ inputs.coverage-pr-comment-header }}
+          path: code-coverage-results.md
+
+      - name: Write to Job Summary
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          if [ -f code-coverage-results.md ]; then
+            cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  pack:
+    name: pack
+    if: ${{ inputs.pack }}
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Validate inputs
+        working-directory: ${{ github.workspace }}
+        env:
+          PACK_PROJECT: ${{ inputs.pack-project }}
+          PACK_OUTPUT: ${{ inputs.pack-output }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PACK_PROJECT" ]; then
+            echo "::error::pack-project input is required when pack=true"
+            exit 1
+          fi
+          case "$PACK_OUTPUT" in
+            /*|./*|..|../*|*/..|*/../*)
+              echo "::error::pack-output must be a relative path without './' prefix or '..' path segments (got: $PACK_OUTPUT)"
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Restore
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          dotnet restore
+
+      - name: Pack
+        env:
+          PACK_PROJECT: ${{ inputs.pack-project }}
+          PACK_OUTPUT: ${{ inputs.pack-output }}
+        run: |
+          set -euo pipefail
+          dotnet pack "$PACK_PROJECT" \
+            --configuration Release \
+            --output "$PACK_OUTPUT"
+
+      - name: Compute artifact path
+        id: artifact-path
+        working-directory: ${{ github.workspace }}
+        env:
+          WD: ${{ inputs.working-directory }}
+          PO: ${{ inputs.pack-output }}
+        run: |
+          set -euo pipefail
+          if [ "$WD" = "." ] || [ -z "$WD" ]; then
+            path="$PO/*.nupkg"
+          else
+            path="$WD/$PO/*.nupkg"
+          fi
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ steps.artifact-path.outputs.path }}
+          if-no-files-found: error
