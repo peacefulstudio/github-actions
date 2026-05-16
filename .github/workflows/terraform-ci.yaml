@@ -1,0 +1,230 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+
+name: Terraform CI
+
+on:
+  workflow_call:
+    inputs:
+      terraform-version:
+        description: >-
+          Version constraint passed to hashicorp/setup-terraform.
+          Examples: "~> 1.9", "1.14.0", "latest".
+        required: false
+        type: string
+        default: '~> 1.9'
+      working-directory:
+        description: >-
+          Path (relative to the repo root) where the Terraform workspace
+          lives. All commands (`fmt`, `validate`, `test`) run from here.
+          Use '.' for repos that keep .tf files at the root.
+        required: false
+        type: string
+        default: 'terraform'
+      module-paths:
+        description: >-
+          Optional space-separated list of module directories
+          (relative to `working-directory`) to validate. When empty,
+          discovery falls back to: every direct subdirectory of
+          `modules/`, or — if `modules/` doesn't exist — every
+          directory (up to depth 3) containing `main.tf`,
+          `versions.tf`, or `terraform.tf`, excluding `tests/`,
+          `examples/`, and `.terraform/`. Set this explicitly for
+          any non-trivial layout — the fallback is best-effort.
+        required: false
+        type: string
+        default: ''
+      pr-comment-header:
+        description: >-
+          Header used by marocchino/sticky-pull-request-comment so
+          multiple Terraform-test comments on the same PR don't
+          collide. Make this unique per workspace if a repo calls
+          this workflow more than once.
+        required: false
+        type: string
+        default: 'terraform-tests'
+      runs-on:
+        description: Runner label for all jobs.
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+
+jobs:
+  validate-and-test:
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt check
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive
+
+      - name: Discover modules
+        id: modules
+        env:
+          EXPLICIT_PATHS: ${{ inputs.module-paths }}
+        run: |
+          set -euo pipefail
+          dirs=""
+          if [ -n "$EXPLICIT_PATHS" ]; then
+            read -r -a candidates <<<"$EXPLICIT_PATHS"
+            existing=()
+            for p in "${candidates[@]}"; do
+              if [ -d "$p" ]; then
+                existing+=("$p")
+              else
+                echo "::warning::module-paths entry not found, skipping: $p"
+              fi
+            done
+            if [ ${#existing[@]} -gt 0 ]; then
+              dirs=$(printf '%s\n' "${existing[@]}")
+            fi
+          elif [ -d modules ]; then
+            dirs=$(find modules -maxdepth 1 -mindepth 1 -type d 2>/dev/null || true)
+          else
+            dirs=$(find . -maxdepth 3 \( -name 'main.tf' -o -name 'versions.tf' -o -name 'terraform.tf' \) -not -path './tests/*' -not -path './examples/*' -not -path './.terraform/*' -printf '%h\n' 2>/dev/null | sort -u || true)
+          fi
+          if [ -z "$dirs" ]; then
+            echo "No Terraform modules discovered under '$PWD'."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Modules to validate:"
+          while IFS= read -r d; do echo "  $d"; done <<< "$dirs"
+          {
+            echo "found=true"
+            echo "dirs<<EOF"
+            echo "$dirs"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validate modules
+        if: steps.modules.outputs.found == 'true'
+        env:
+          MODULE_DIRS: ${{ steps.modules.outputs.dirs }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r dir; do
+            [ -z "$dir" ] && continue
+            echo "::group::validate $dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done <<< "$MODULE_DIRS"
+
+      - name: Discover terraform test roots
+        id: tests
+        run: |
+          set -euo pipefail
+          roots=$(find . -name '*.tftest.hcl' -not -path '*/.terraform/*' -printf '%h\n' 2>/dev/null | sort -u || true)
+          if [ -z "$roots" ]; then
+            echo "No .tftest.hcl files found — skipping terraform test."
+            echo "ran=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test_dirs=$(
+            while IFS= read -r r; do
+              [ -z "$r" ] && continue
+              case "$r" in
+                */tests|*/tests/*)
+                  stripped="${r%%/tests*}"
+                  echo "${stripped:-.}"
+                  ;;
+                *)
+                  echo "$r"
+                  ;;
+              esac
+            done <<< "$roots" | sort -u
+          )
+          echo "Test roots:"
+          while IFS= read -r d; do echo "  $d"; done <<< "$test_dirs"
+          {
+            echo "ran=true"
+            echo "dirs<<EOF"
+            echo "$test_dirs"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run terraform tests
+        if: steps.tests.outputs.ran == 'true'
+        env:
+          TEST_DIRS: ${{ steps.tests.outputs.dirs }}
+        run: |
+          set -euo pipefail
+          : > test-output.txt
+          status=0
+          while IFS= read -r dir; do
+            [ -z "$dir" ] && continue
+            echo "::group::test $dir"
+            if {
+              terraform -chdir="$dir" init -backend=false -input=false &&
+              terraform -chdir="$dir" test -verbose
+            } 2>&1 | tee -a test-output.txt; then
+              echo "::endgroup::"
+            else
+              status=$?
+              echo "::endgroup::"
+            fi
+          done <<< "$TEST_DIRS"
+          exit "$status"
+
+      - name: Build test summary
+        if: always() && steps.tests.outputs.ran == 'true'
+        run: |
+          set -euo pipefail
+          if [ ! -f test-output.txt ]; then
+            echo "::warning::terraform test produced no output file — skipping summary"
+            exit 0
+          fi
+          {
+            echo "## Terraform test results"
+            echo
+            echo '```'
+            tail -60 test-output.txt
+            echo '```'
+          } > test-summary.md
+          cat test-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compute sticky comment path
+        id: comment-path
+        if: always() && steps.tests.outputs.ran == 'true' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+        working-directory: ${{ github.workspace }}
+        env:
+          WD: ${{ inputs.working-directory }}
+        run: |
+          set -euo pipefail
+          if [ "$WD" = "." ] || [ -z "$WD" ]; then
+            path="test-summary.md"
+          else
+            path="$WD/test-summary.md"
+          fi
+          if [ ! -f "$path" ]; then
+            echo "::warning::Expected summary at $path was not produced — skipping PR comment"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Add test summary PR comment
+        if: steps.comment-path.outputs.exists == 'true'
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        with:
+          recreate: true
+          header: ${{ inputs.pr-comment-header }}
+          path: ${{ steps.comment-path.outputs.path }}
