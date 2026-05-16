@@ -19,6 +19,17 @@ on:
         required: false
         type: string
         default: 'go cli'
+      test-packages:
+        description: >-
+          Go package pattern passed to `go test` and `go build` (e.g.
+          `./...` or `./internal/...`). Use a narrower pattern to exclude
+          packages that have no unit tests by design — for example, a
+          terraform-provider's root `main.go` (driven by acceptance tests
+          under TF_ACC=1) appears as a 0% row in the coverage table
+          otherwise. Default `./...` preserves existing behavior.
+        required: false
+        type: string
+        default: './...'
       golangci-lint-version:
         description: >-
           Version selector for `go install <module>@<version>`. Values starting
@@ -86,12 +97,13 @@ jobs:
         if: steps.discover.outputs.found == 'true'
         env:
           MODULES: ${{ steps.discover.outputs.modules }}
+          TEST_PACKAGES: ${{ inputs.test-packages }}
         run: |
           set -euo pipefail
           while IFS= read -r mod; do
             [ -z "$mod" ] && continue
             echo "::group::build $mod"
-            (cd "$mod" && go build ./...)
+            (cd "$mod" && go build "$TEST_PACKAGES")
             echo "::endgroup::"
           done <<< "$MODULES"
 
@@ -99,6 +111,7 @@ jobs:
         if: steps.discover.outputs.found == 'true'
         env:
           MODULES: ${{ steps.discover.outputs.modules }}
+          TEST_PACKAGES: ${{ inputs.test-packages }}
         run: |
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/coverage"
@@ -106,7 +119,7 @@ jobs:
             [ -z "$mod" ] && continue
             safe=$(echo "$mod" | tr '/' '_')
             echo "::group::test $mod"
-            (cd "$mod" && go test -v -race -covermode=atomic -coverprofile="$GITHUB_WORKSPACE/coverage/$safe.out" ./...)
+            (cd "$mod" && go test -v -race -covermode=atomic -coverprofile="$GITHUB_WORKSPACE/coverage/$safe.out" "$TEST_PACKAGES")
             echo "::endgroup::"
           done <<< "$MODULES"
 
