@@ -72,7 +72,7 @@ jobs:
       - name: Terraform fmt check
         run: |
           set -euo pipefail
-          terraform fmt -check -recursive
+          terraform fmt -check -recursive -no-color
 
       - name: Discover modules
         id: modules
@@ -123,7 +123,7 @@ jobs:
             [ -z "$dir" ] && continue
             echo "::group::validate $dir"
             terraform -chdir="$dir" init -backend=false -input=false
-            terraform -chdir="$dir" validate
+            terraform -chdir="$dir" validate -no-color
             echo "::endgroup::"
           done <<< "$MODULE_DIRS"
 
@@ -172,8 +172,8 @@ jobs:
             [ -z "$dir" ] && continue
             echo "::group::test $dir"
             if {
-              terraform -chdir="$dir" init -backend=false -input=false &&
-              terraform -chdir="$dir" test -verbose
+              terraform -chdir="$dir" init -backend=false -input=false -no-color &&
+              terraform -chdir="$dir" test -verbose -no-color
             } 2>&1 | tee -a test-output.txt; then
               echo "::endgroup::"
             else
