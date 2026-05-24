@@ -59,15 +59,13 @@ moving `vN` major); see [Release process](#release-process) below.
    ```bash
    actionlint .github/workflows/<file>.yaml
    ```
-4. **Cross-check against the
-   [CI hardening rules](https://github.com/peacefulstudio/peaceful-skills/blob/main/oss-prep/references/ci-hardening.md)**
-   — particularly: no `@latest` for installed tools, SHA-pin every
-   third-party action outside `actions/*` and `github/*`, fork-PR token
-   guard on any write-API step, `set -euo pipefail` in multi-line bash
-   blocks.
+4. **Cross-check against standard CI hardening rules** — particularly:
+   no `@latest` for installed tools, SHA-pin every third-party action
+   outside `actions/*` and `github/*`, fork-PR token guard on any
+   write-API step, `set -euo pipefail` in multi-line bash blocks.
 5. **Integration test with a real consumer.** Push your branch and point
-   one of the [Known consumers](./CLAUDE.md#known-consumers) (or a
-   throwaway test repo) at your ref:
+   a throwaway test repo (or any repo you maintain that consumes one of
+   these workflows) at your ref:
    ```yaml
    uses: peacefulstudio/github-actions/.github/workflows/<file>.yaml@<your-branch>
    ```
@@ -139,8 +137,9 @@ After your PR merges to `dev`:
    ```
 2. Update the README's "Available workflows" section if any input/output
    contract changed.
-3. Notify the consumers listed in [CLAUDE.md](CLAUDE.md#known-consumers)
-   if the change requires their attention.
+3. Notify known consumers (those calling this repo's workflows via
+   `uses: peacefulstudio/github-actions/...`) if the change requires
+   their attention.
 
 ## Reporting bugs
 
