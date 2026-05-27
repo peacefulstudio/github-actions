@@ -43,6 +43,17 @@ on:
         required: false
         type: string
         default: 'terraform-tests'
+      coverage-title:
+        description: >-
+          Heading prepended to the rendered coverage report so a reader
+          can tell the language at a glance when multiple coverage
+          sticky comments coexist on the same PR. Rendered as a
+          markdown H2. Note: `pr-comment-header` is an HTML-comment
+          dedup key only, never visible — no doubling on the rendered
+          comment.
+        required: false
+        type: string
+        default: 'Terraform coverage'
       runs-on:
         description: Runner label for all jobs.
         required: false
@@ -199,6 +210,19 @@ jobs:
             echo '```'
           } > test-summary.md
           cat test-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepend coverage title
+        if: always() && steps.tests.outputs.ran == 'true'
+        env:
+          COVERAGE_TITLE: ${{ inputs.coverage-title }}
+        run: |
+          set -euo pipefail
+          if [ ! -f test-summary.md ]; then
+            echo "::error::test-summary.md not found after Build test summary — cannot prepend title"
+            exit 1
+          fi
+          printf '## %s\n\n' "$COVERAGE_TITLE" | cat - test-summary.md > test-summary.tmp
+          mv test-summary.tmp test-summary.md
 
       - name: Compute sticky comment path
         id: comment-path
