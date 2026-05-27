@@ -49,17 +49,27 @@ on:
         default: 'target/scala-2.13/coverage-report/cobertura.xml'
       coverage-pr-comment-header:
         description: >-
-          Header used by marocchino/sticky-pull-request-comment so
-          multiple coverage comments on the same PR don't collide. Make
-          this unique per language / per repo (e.g. 'jvm-coverage').
+          Hidden HTML-comment dedup key used by
+          marocchino/sticky-pull-request-comment to find and rewrite its
+          own comment on re-runs — NOT shown to the reader. Make this
+          unique per language / per repo (e.g. 'jvm-coverage') so multiple
+          sticky coverage comments on the same PR don't collide. For the
+          visible heading, see `coverage-title`. Note: this shares the
+          same default string as `coverage-artifact-name` but the two are
+          unrelated knobs — this one keys the PR comment, the other
+          names the uploaded Cobertura artifact.
         required: false
         type: string
         default: 'jvm-coverage'
       coverage-artifact-name:
         description: >-
-          Name of the uploaded Cobertura artifact. Must not collide with
-          other coverage artifacts uploaded by sibling jobs in the same
-          workflow run (e.g. a parallel `csharp-ci` job).
+          Name of the uploaded Cobertura artifact (actions/upload-artifact
+          `name:` input). Must not collide with other coverage artifacts
+          uploaded by sibling jobs in the same workflow run (e.g. a
+          parallel `csharp-ci` job). Note: this shares the same default
+          string as `coverage-pr-comment-header` but the two are
+          unrelated knobs — this one names the artifact, the other keys
+          the PR comment.
         required: false
         type: string
         default: 'jvm-coverage'
@@ -69,6 +79,8 @@ on:
           can tell the language at a glance when multiple coverage sticky
           comments coexist on the same PR. Default identifies the
           language. Rendered as a markdown H2.
+          `coverage-pr-comment-header` is HTML-comment-only, so the
+          rendered comment shows ONLY this H2 — no doubling.
         required: false
         type: string
         default: 'JVM coverage'
@@ -77,6 +89,13 @@ on:
           Arguments passed to `sbt` for the build/test/coverage step.
           Override for advanced cases; the default runs a clean,
           coverage-instrumented test pass and emits a Cobertura report.
+          Implementation note: the step runs `eval "sbt $SBT_COMMAND"` to
+          preserve embedded quoting in the default value, so this input
+          MUST come from a trusted caller (the caller's workflow file,
+          not a webhook payload). If this workflow ever grows a
+          `workflow_dispatch` trigger, that is a precondition violation —
+          the maintainer must switch to a no-eval shape before exposing
+          this input to untrusted input sources.
         required: false
         type: string
         default: "-batch -no-colors 'clean; coverage; test; coverageReport'"
@@ -153,10 +172,12 @@ jobs:
           COVERAGE_TITLE: ${{ inputs.coverage-title }}
         run: |
           set -euo pipefail
-          if [ -f code-coverage-results.md ]; then
-            printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
-            mv code-coverage-results.tmp code-coverage-results.md
+          if [ ! -f code-coverage-results.md ]; then
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the staged Cobertura path"
+            exit 1
           fi
+          printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
+          mv code-coverage-results.tmp code-coverage-results.md
 
       - name: Add Coverage PR Comment
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
@@ -171,13 +192,15 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          if [ -f code-coverage-results.md ]; then
-            cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -f code-coverage-results.md ]; then
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the staged Cobertura path"
+            exit 1
           fi
+          cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Cobertura coverage artifact
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.coverage-artifact-name }}
           path: ${{ inputs.working-directory }}/${{ inputs.cobertura-path }}
