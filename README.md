@@ -157,6 +157,56 @@ jobs:
     secrets: inherit
 ```
 
+#### Caller prerequisites (xUnit v3 + Microsoft.Testing.Platform)
+
+This workflow runs tests end-to-end on **xUnit v3 + Microsoft.Testing.Platform
+(MTP)**. Callers still on xUnit v2 + coverlet cannot pin to this workflow —
+stay on a previous SHA / tag until you've migrated the items below.
+
+- **`Directory.Packages.props` pinning**:
+  - `xunit.v3` — `3.2.2`
+  - `Microsoft.Testing.Extensions.CodeCoverage` — same version as the
+    workflow input `dotnet-coverage-version` (default `18.0.6`).
+  The MTP coverage extension version is pinned deliberately and the
+  `dotnet-coverage-version` workflow input is the single source of truth
+  for the matching global tool used at merge time — keep them aligned.
+  See [`canton-ledger-api-csharp#79`](https://github.com/peacefulstudio/canton-ledger-api-csharp/pull/79)
+  for the MTP 1.x / 2.x compatibility rationale: do not bump
+  `CodeCoverage` past 18.0.x until `xunit.v3` ships an MTP 2.x build —
+  newer 19.x lines have produced empty Cobertura output in this pipeline.
+
+- **`tests/Directory.Build.props`** (or equivalent) must enable MTP:
+
+  ```xml
+  <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  <TestingPlatformCommandLineArguments>--coverage --coverage-output-format cobertura --settings $(MSBuildThisFileDirectory)../coverage.settings.xml</TestingPlatformCommandLineArguments>
+  ```
+
+  The exact arguments live in the caller — what matters is that MTP runs
+  in-process and emits `*.cobertura.xml` files somewhere under `tests/`.
+
+- **Multi-TFM test projects** must set a per-TFM Cobertura filename to
+  avoid silent overwrites between target frameworks:
+
+  ```xml
+  <TestingPlatformCommandLineArguments>... --coverage-output $(MSBuildProjectName)_$(TargetFramework).cobertura.xml</TestingPlatformCommandLineArguments>
+  ```
+
+  Single-TFM projects can omit this.
+
+- **`coverage.settings.xml`** at the repo root (or wherever
+  `TestingPlatformCommandLineArguments` points), tuning the coverage
+  collector. Prefer exclude-only `<ModulePaths>` (e.g. exclude test
+  assemblies, third-party DLLs) rather than an include-list — an
+  include-only `<ModulePaths>` silently drops any new production
+  assembly that isn't listed and produces drifting coverage numbers
+  with no error.
+
+- **Coverlet removed** from every test `.csproj` — MTP's
+  `Microsoft.Testing.Extensions.CodeCoverage` replaces it. Mixing the
+  two produces duplicate or empty Cobertura reports.
+
 ### `terraform-ci.yaml` — Terraform fmt, validate, test
 
 Runs `terraform fmt -check -recursive`, then discovers Terraform modules

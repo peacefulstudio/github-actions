@@ -1,50 +1,6 @@
 # Copyright (c) 2026 Peaceful Studio OÜ
 # SPDX-License-Identifier: Apache-2.0
 
-# Caller contract — what your repo must provide for this reusable workflow to
-# work end-to-end with xUnit v3 + Microsoft.Testing.Platform (MTP):
-#
-#   * Directory.Packages.props pinning:
-#       - xunit.v3                                  3.2.2
-#       - Microsoft.Testing.Extensions.CodeCoverage <same as the workflow
-#         input dotnet-coverage-version, default 18.0.6>
-#     The MTP coverage extension version is pinned deliberately and the
-#     `dotnet-coverage-version` workflow input is the single source of truth
-#     for the matching global tool used at merge time. Keep the package
-#     version in Directory.Packages.props aligned with that input. See
-#     peacefulstudio/canton-ledger-api-csharp#79 for the MTP 1.x / 2.x
-#     compatibility rationale — do not bump CodeCoverage past 18.0.x until
-#     xunit.v3 ships an MTP 2.x build; newer 19.x lines have produced empty
-#     cobertura output in this pipeline.
-#
-#   * tests/Directory.Build.props (or equivalent) setting:
-#       <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-#       <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
-#       <TestingPlatformCommandLineArguments>--coverage --coverage-output-format cobertura --settings $(MSBuildThisFileDirectory)../coverage.settings.xml</TestingPlatformCommandLineArguments>
-#     (The exact arguments live in the caller — what matters is that MTP runs
-#     in-process and emits `*.cobertura.xml` files somewhere under tests/.)
-#
-#   * For multi-TFM test projects, set a per-TFM cobertura filename to avoid
-#     silent overwrites between target frameworks:
-#       <TestingPlatformCommandLineArguments>... --coverage-output $(MSBuildProjectName)_$(TargetFramework).cobertura.xml</TestingPlatformCommandLineArguments>
-#     Single-TFM projects can omit this.
-#
-#   * coverage.settings.xml at the repo root (or wherever
-#     TestingPlatformCommandLineArguments points), tuning the coverage
-#     collector. Prefer exclude-only `<ModulePaths>` (e.g. exclude test
-#     assemblies, third-party DLLs) rather than an include-list — an
-#     include-only `<ModulePaths>` silently drops any new production
-#     assembly that isn't listed and produces drifting coverage numbers
-#     with no error.
-#
-#   * Coverlet removed from every test .csproj — MTP's
-#     Microsoft.Testing.Extensions.CodeCoverage replaces it. Mixing the two
-#     produces duplicate or empty cobertura reports.
-#
-# Callers that haven't migrated yet (still on xUnit v2 + coverlet) cannot
-# pin to this workflow — they must stay on a previous SHA / tag until they
-# follow the steps above.
-
 name: CSharp CI
 
 on:
@@ -62,7 +18,12 @@ on:
         description: >-
           Override concurrency group (defaults to workflow + ref). Set this
           when the caller invokes csharp-ci from multiple jobs in the same
-          workflow on the same ref and each should run in parallel.
+          workflow on the same ref and each should run in parallel. Note:
+          under `workflow_call`, the `github.workflow` context resolves to
+          the caller's workflow `name:`, not `"CSharp CI"` — so two
+          unrelated callers that happen to share the same workflow name
+          will share the default concurrency group; pass an explicit
+          override here to isolate them.
         required: false
         type: string
         default: ''
@@ -105,9 +66,12 @@ on:
         default: ''
       coverage-pr-comment-header:
         description: >-
-          Header used by marocchino/sticky-pull-request-comment so multiple
-          coverage comments on the same PR don't collide. Make this unique
-          per language / per repo (e.g. 'csharp-coverage').
+          Hidden HTML-comment dedup key used by
+          marocchino/sticky-pull-request-comment to find and rewrite its
+          own comment on re-runs — NOT shown to the reader. Make this
+          unique per language / per repo (e.g. 'csharp-coverage') so
+          multiple sticky coverage comments on the same PR don't collide.
+          For the visible heading, see `coverage-title`.
         required: false
         type: string
         default: 'csharp-coverage'
@@ -116,7 +80,9 @@ on:
           Heading prepended to the rendered coverage report so a reader
           can tell the language at a glance when multiple coverage sticky
           comments coexist on the same PR. Default identifies the
-          language. Rendered as a markdown H2.
+          language. Rendered as a markdown H2. `coverage-pr-comment-header`
+          is HTML-comment-only, so the rendered comment shows ONLY this
+          H2 — no doubling.
         required: false
         type: string
         default: 'C# coverage'
@@ -269,10 +235,12 @@ jobs:
           COVERAGE_TITLE: ${{ inputs.coverage-title }}
         run: |
           set -euo pipefail
-          if [ -f code-coverage-results.md ]; then
-            printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
-            mv code-coverage-results.tmp code-coverage-results.md
+          if [ ! -f code-coverage-results.md ]; then
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the merged cobertura path"
+            exit 1
           fi
+          printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
+          mv code-coverage-results.tmp code-coverage-results.md
 
       - name: Add Coverage PR Comment
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
