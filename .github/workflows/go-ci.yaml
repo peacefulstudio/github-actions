@@ -40,6 +40,17 @@ on:
         required: false
         type: string
         default: 'latest'
+      coverage-title:
+        description: >-
+          Heading prepended to the rendered coverage report so a reader
+          can tell the language at a glance when multiple coverage
+          sticky comments coexist on the same PR. Rendered as a
+          markdown H2. Note: `coverage-pr-comment-header` is an
+          HTML-comment dedup key only, never visible — no doubling on
+          the rendered comment.
+        required: false
+        type: string
+        default: 'Go coverage'
       runs-on:
         description: Runner label for all jobs.
         required: false
@@ -248,6 +259,19 @@ jobs:
             echo
             echo "</details>"
           } >> code-coverage-results.md
+
+      - name: Prepend coverage title
+        if: steps.discover.outputs.found == 'true'
+        env:
+          COVERAGE_TITLE: ${{ inputs.coverage-title }}
+        run: |
+          set -euo pipefail
+          if [ ! -f code-coverage-results.md ]; then
+            echo "::error::code-coverage-results.md not found after Code Coverage Summary Report — did irongut/CodeCoverageSummary succeed?"
+            exit 1
+          fi
+          printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
+          mv code-coverage-results.tmp code-coverage-results.md
 
       - name: Add Coverage PR Comment
         if: steps.discover.outputs.found == 'true' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
