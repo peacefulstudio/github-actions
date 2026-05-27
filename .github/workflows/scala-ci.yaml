@@ -110,7 +110,6 @@ jobs:
         os: ${{ fromJSON(inputs.os-list) }}
     permissions:
       contents: read
-      packages: read
       pull-requests: write
     defaults:
       run:

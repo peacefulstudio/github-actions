@@ -235,11 +235,19 @@ summary, and the artifact upload only run on the `ubuntu-latest` shard.
 
 **Required secrets**: none. PR comments use the default `GITHUB_TOKEN`.
 
-**Required permissions**: declared per-job inside the workflow (`contents: read`, `packages: read`, `pull-requests: write` for the sticky coverage comment) — no caller-side setup needed.
+**Required permissions**: declared per-job inside the workflow (`contents: read`, `pull-requests: write` for the sticky coverage comment) — no caller-side setup needed.
 
 Consumer `.github/workflows/scala-ci.yaml`:
 
 ```yaml
+name: Scala CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
 jobs:
   scala-ci:
     uses: peacefulstudio/github-actions/.github/workflows/scala-ci.yaml@v1
