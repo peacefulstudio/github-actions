@@ -207,6 +207,73 @@ stay on a previous SHA / tag until you've migrated the items below.
   `Microsoft.Testing.Extensions.CodeCoverage` replaces it. Mixing the
   two produces duplicate or empty Cobertura reports.
 
+### `scala-ci.yaml` — sbt build, test, coverage
+
+Runs `sbt clean coverage test coverageReport` against the workspace at
+`working-directory`, producing a Cobertura coverage report via
+[`sbt-scoverage`](https://github.com/scoverage/sbt-scoverage). Posts a
+sticky PR comment + job summary with the rendered coverage table and
+uploads the raw Cobertura XML as a build artifact.
+
+A configurable `os-list` matrix runs build + test across one or several
+runners. Coverage report generation, the sticky PR comment, the job
+summary, and the artifact upload only run on the `ubuntu-latest` shard.
+
+**Inputs**:
+
+| Input                         | Default                                              | Description                                                                                                                            |
+| ----------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `working-directory`           | `.`                                                  | Path of the sbt/Scala workspace. Also used as the prefix for `cobertura-path` and when hashing sbt files for the cache key.            |
+| `java-version`                | `21`                                                 | Passed to `actions/setup-java`.                                                                                                        |
+| `java-distribution`           | `temurin`                                            | Passed to `actions/setup-java`.                                                                                                        |
+| `os-list`                     | `["ubuntu-latest"]`                                  | JSON array of runner labels for the build-and-test matrix.                                                                             |
+| `cobertura-path`              | `target/scala-2.13/coverage-report/cobertura.xml`    | Path (relative to `working-directory`) of the Cobertura XML emitted by `sbt coverageReport`. Override for non-2.13 Scala majors.       |
+| `coverage-pr-comment-header`  | `scala-coverage`                                     | Hidden HTML-comment dedup key for the sticky PR comment. Make unique per language / per repo if multiple coverage comments coexist.    |
+| `coverage-artifact-name`      | `scala-coverage`                                     | Name of the uploaded Cobertura artifact. Must not collide with other coverage artifacts uploaded by sibling jobs in the same run.      |
+| `coverage-title`              | `Scala coverage`                                     | Rendered as a markdown H2 prepended to the coverage report so readers can tell the language at a glance.                               |
+| `sbt-command`                 | `-batch -no-colors 'clean; coverage; test; coverageReport'` | Arguments passed to `sbt` for the build/test/coverage step. Run via `eval`, so callers must be trusted (workflow file, not user input). |
+
+**Required secrets**: none. PR comments use the default `GITHUB_TOKEN`.
+
+**Required permissions**: declared per-job inside the workflow (`contents: read`, `packages: read`, `pull-requests: write` for the sticky coverage comment) — no caller-side setup needed.
+
+Consumer `.github/workflows/scala-ci.yaml`:
+
+```yaml
+jobs:
+  scala-ci:
+    uses: peacefulstudio/github-actions/.github/workflows/scala-ci.yaml@v1
+    with:
+      working-directory: jvm-helper
+```
+
+#### Caller prerequisites
+
+- **sbt project** rooted at `working-directory` — `build.sbt`,
+  `project/build.properties`, and `project/plugins.sbt` are expected at
+  that path (they're hashed into the sbt cache key).
+
+- **`sbt-scoverage` plugin** declared in
+  `<working-directory>/project/plugins.sbt`. Without it, `sbt coverage`
+  and `sbt coverageReport` fail at task-lookup and the workflow exits
+  non-zero before any Cobertura file is produced.
+
+- **Cobertura XML** must land at
+  `<working-directory>/target/scala-<scala-major>/coverage-report/cobertura.xml`
+  after `sbt coverageReport` — this is the path the workflow stages,
+  summarises, and uploads. The default `cobertura-path` input targets
+  `scala-2.13`; **Scala 3 and other-major callers MUST override
+  `cobertura-path`** (e.g. `target/scala-3/coverage-report/cobertura.xml`),
+  otherwise the staging step fails with a missing-file error.
+
+- **JDK compatible with the project's Scala / sbt versions**. Defaults to
+  Temurin 21 — override `java-version` and `java-distribution` for
+  projects pinned to an older or alternative JDK.
+
+- **`sbt-command` is `eval`'d** in the runner shell, so the value MUST
+  come from a trusted source (the caller's workflow file). Do not wire
+  this input to webhook or `workflow_dispatch` payloads.
+
 ### `terraform-ci.yaml` — Terraform fmt, validate, test
 
 Runs `terraform fmt -check -recursive`, then discovers Terraform modules
