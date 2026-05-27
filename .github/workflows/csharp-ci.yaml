@@ -111,6 +111,15 @@ on:
         required: false
         type: string
         default: 'csharp-coverage'
+      coverage-title:
+        description: >-
+          Heading prepended to the rendered coverage report so a reader
+          can tell the language at a glance when multiple coverage sticky
+          comments coexist on the same PR. Default identifies the
+          language. Rendered as a markdown H2.
+        required: false
+        type: string
+        default: 'C# coverage'
       dotnet-coverage-version:
         description: >-
           Version of the `dotnet-coverage` global tool used to merge the
@@ -252,6 +261,18 @@ jobs:
           badge: true
           format: markdown
           output: both
+
+      - name: Prepend coverage title
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ${{ github.workspace }}
+        env:
+          COVERAGE_TITLE: ${{ inputs.coverage-title }}
+        run: |
+          set -euo pipefail
+          if [ -f code-coverage-results.md ]; then
+            printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
+            mv code-coverage-results.tmp code-coverage-results.md
+          fi
 
       - name: Add Coverage PR Comment
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
