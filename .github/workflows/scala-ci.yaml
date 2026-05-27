@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Peaceful Studio OÜ
 # SPDX-License-Identifier: Apache-2.0
 
-name: JVM CI
+name: Scala CI
 
 on:
   workflow_call:
@@ -52,7 +52,7 @@ on:
           Hidden HTML-comment dedup key used by
           marocchino/sticky-pull-request-comment to find and rewrite its
           own comment on re-runs — NOT shown to the reader. Make this
-          unique per language / per repo (e.g. 'jvm-coverage') so multiple
+          unique per language / per repo (e.g. 'scala-coverage') so multiple
           sticky coverage comments on the same PR don't collide. For the
           visible heading, see `coverage-title`. Note: this shares the
           same default string as `coverage-artifact-name` but the two are
@@ -60,7 +60,7 @@ on:
           names the uploaded Cobertura artifact.
         required: false
         type: string
-        default: 'jvm-coverage'
+        default: 'scala-coverage'
       coverage-artifact-name:
         description: >-
           Name of the uploaded Cobertura artifact (actions/upload-artifact
@@ -72,7 +72,7 @@ on:
           the PR comment.
         required: false
         type: string
-        default: 'jvm-coverage'
+        default: 'scala-coverage'
       coverage-title:
         description: >-
           Heading prepended to the rendered coverage report so a reader
@@ -83,7 +83,7 @@ on:
           rendered comment shows ONLY this H2 — no doubling.
         required: false
         type: string
-        default: 'JVM coverage'
+        default: 'Scala coverage'
       sbt-command:
         description: >-
           Arguments passed to `sbt` for the build/test/coverage step.
@@ -121,13 +121,13 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup JDK
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v5.0.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: ${{ inputs.java-distribution }}
           java-version: ${{ inputs.java-version }}
 
       - name: Cache sbt
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.sbt
