@@ -14,6 +14,19 @@ on:
           explicit `secrets:` block on the caller.
         required: false
     inputs:
+      concurrency-group:
+        description: >-
+          Override concurrency group (defaults to workflow + ref). Set this
+          when the caller invokes csharp-ci from multiple jobs in the same
+          workflow on the same ref and each should run in parallel. Note:
+          under `workflow_call`, the `github.workflow` context resolves to
+          the caller's workflow `name:`, not `"CSharp CI"` — so two
+          unrelated callers that happen to share the same workflow name
+          will share the default concurrency group; pass an explicit
+          override here to isolate them.
+        required: false
+        type: string
+        default: ''
       dotnet-version:
         description: .NET SDK version passed to actions/setup-dotnet.
         required: false
@@ -53,12 +66,45 @@ on:
         default: ''
       coverage-pr-comment-header:
         description: >-
-          Header used by marocchino/sticky-pull-request-comment so multiple
-          coverage comments on the same PR don't collide. Make this unique
-          per language / per repo (e.g. 'csharp-coverage').
+          Hidden HTML-comment dedup key used by
+          marocchino/sticky-pull-request-comment to find and rewrite its
+          own comment on re-runs — NOT shown to the reader. Make this
+          unique per language / per repo (e.g. 'csharp-coverage') so
+          multiple sticky coverage comments on the same PR don't collide.
+          For the visible heading, see `coverage-title`.
         required: false
         type: string
         default: 'csharp-coverage'
+      coverage-title:
+        description: >-
+          Heading prepended to the rendered coverage report so a reader
+          can tell the language at a glance when multiple coverage sticky
+          comments coexist on the same PR. Default identifies the
+          language. Rendered as a markdown H2. `coverage-pr-comment-header`
+          is HTML-comment-only, so the rendered comment shows ONLY this
+          H2 — no doubling.
+        required: false
+        type: string
+        default: 'C# coverage'
+      dotnet-coverage-version:
+        description: >-
+          Version of the `dotnet-coverage` global tool used to merge the
+          per-project cobertura reports MTP produces. Pinned by default;
+          override only if you need to track a newer line.
+        required: false
+        type: string
+        default: '18.0.6'
+      tests-glob:
+        description: >-
+          Glob (relative to working-directory) used to locate the per-project
+          `*.cobertura.xml` files emitted by MTP's coverage extension. The
+          default narrows to `bin/Release/net*/` so that stale cobertura
+          files left over in source-controlled or scratch directories do
+          not get merged. Adjust if your tests live outside a top-level
+          `tests/` directory or target a non-Release configuration.
+        required: false
+        type: string
+        default: 'tests/**/bin/Release/net*/**/*.cobertura.xml'
       pack:
         description: >-
           Whether to run `dotnet pack` and upload the resulting .nupkg as a
@@ -88,6 +134,10 @@ on:
         type: string
         default: 'nupkg'
 
+concurrency:
+  group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     name: build-and-test (${{ matrix.os }})
@@ -113,6 +163,14 @@ jobs:
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
 
+      - name: Install dotnet-coverage
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          DOTNET_COVERAGE_VERSION: ${{ inputs.dotnet-coverage-version }}
+        run: |
+          set -euo pipefail
+          dotnet tool update -g dotnet-coverage --version "$DOTNET_COVERAGE_VERSION"
+
       - name: Restore
         env:
           GITHUB_USERNAME: ${{ github.actor }}
@@ -126,19 +184,13 @@ jobs:
           set -euo pipefail
           dotnet build --configuration Release --no-restore
 
-      - name: Test with coverage
+      - name: Test with MTP coverage
         env:
           TEST_PROJECT: ${{ inputs.test-project }}
           TEST_FILTER: ${{ inputs.test-filter }}
         run: |
           set -euo pipefail
-          args=(test --configuration Release --no-build
-                --logger 'trx;LogFileName=test-results.trx'
-                --collect:"XPlat Code Coverage"
-                --results-directory ./coverage)
-          if [ -f coverlet.runsettings ]; then
-            args+=(--settings coverlet.runsettings)
-          fi
+          args=(test --configuration Release --no-build)
           if [ -n "$TEST_FILTER" ]; then
             args+=(--filter "$TEST_FILTER")
           fi
@@ -147,30 +199,48 @@ jobs:
           fi
           dotnet "${args[@]}"
 
-      - name: Merge coverage reports
+      - name: Merge per-project cobertura reports
         if: matrix.os == 'ubuntu-latest'
+        env:
+          TESTS_GLOB: ${{ inputs.tests-glob }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          cobertura_files=(coverage/*/coverage.cobertura.xml)
+          mkdir -p coverage
+          shopt -s globstar nullglob
+          # shellcheck disable=SC2206  # intentional word-split: $TESTS_GLOB is a glob pattern (sourced from inputs.tests-glob via env:), expanded under globstar+nullglob
+          cobertura_files=($TESTS_GLOB)
           if [ ${#cobertura_files[@]} -eq 0 ]; then
-            echo "::error::No coverage.cobertura.xml files produced under coverage/ — did dotnet test collect coverage?"
+            echo "::error::No .cobertura.xml files produced under '$TESTS_GLOB' — did MTP coverage extension run? See the 'Caller prerequisites' subsection under csharp-ci.yaml in the peacefulstudio/github-actions README."
             exit 1
           fi
-          dotnet tool install -g dotnet-reportgenerator-globaltool --version 5.5.10
-          reportgenerator \
-            "-reports:coverage/*/coverage.cobertura.xml" \
-            -targetdir:coverage/merged \
-            -reporttypes:Cobertura
+          echo "Merging ${#cobertura_files[@]} cobertura files: ${cobertura_files[*]}"
+          dotnet-coverage merge \
+            -o coverage/merged.cobertura.xml \
+            -f cobertura \
+            "${cobertura_files[@]}"
 
       - name: Code Coverage Summary Report
         if: matrix.os == 'ubuntu-latest'
         uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
         with:
-          filename: '${{ inputs.working-directory }}/coverage/merged/Cobertura.xml'
+          filename: '${{ inputs.working-directory }}/coverage/merged.cobertura.xml'
           badge: true
-          format: 'markdown'
-          output: 'both'
+          format: markdown
+          output: both
+
+      - name: Prepend coverage title
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ${{ github.workspace }}
+        env:
+          COVERAGE_TITLE: ${{ inputs.coverage-title }}
+        run: |
+          set -euo pipefail
+          if [ ! -f code-coverage-results.md ]; then
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the merged cobertura path"
+            exit 1
+          fi
+          printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
+          mv code-coverage-results.tmp code-coverage-results.md
 
       - name: Add Coverage PR Comment
         if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
@@ -185,9 +255,11 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          if [ -f code-coverage-results.md ]; then
-            cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -f code-coverage-results.md ]; then
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the merged cobertura path"
+            exit 1
           fi
+          cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
 
   pack:
     name: pack
