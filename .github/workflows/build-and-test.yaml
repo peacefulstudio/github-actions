@@ -27,3 +27,6 @@ jobs:
 
       - name: Lint workflow files
         run: ./actionlint -color
+
+      - name: Run shell script tests
+        run: bash test/route-nuget-push_test.sh
