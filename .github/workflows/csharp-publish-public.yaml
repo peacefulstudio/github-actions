@@ -1,0 +1,132 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+
+name: CSharp Publish (public)
+
+on:
+  workflow_call:
+    inputs:
+      version_override:
+        description: 'Override version (leave empty for auto-calculated)'
+        required: false
+        type: string
+    secrets:
+      NUGET_API_KEY_CANTON:
+        description: nuget.org API key for Canton.* packages.
+        required: false
+      NUGET_API_KEY_DAML:
+        description: nuget.org API key for Daml.* packages.
+        required: false
+      NUGET_API_KEY_SPLICE:
+        description: nuget.org API key for Splice.* packages.
+        required: false
+      NUGET_API_KEY_PEACEFUL:
+        description: nuget.org API key for Peaceful.* packages.
+        required: false
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Checkout publishing helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: v1
+          path: .github-actions-helpers
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Get version info
+        id: version
+        env:
+          VERSION_OVERRIDE: ${{ inputs.version_override }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            echo "version=$VERSION_OVERRIDE" >> "$GITHUB_OUTPUT"
+            echo "Using override version: $VERSION_OVERRIDE"
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" = "release" ]; then
+            VERSION="${RELEASE_TAG#v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "Using release tag version: $VERSION"
+            exit 0
+          fi
+
+          BASE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props || true)
+          if [ -z "$BASE_VERSION" ]; then
+            echo "::error::Directory.Build.props is missing or has no <Version> element; cannot compute a pre-release version." >&2
+            exit 1
+          fi
+
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          BRANCH_NAME="${BRANCH_NAME//[^0-9a-zA-Z]/-}"
+          if [ "$BRANCH_NAME" = "prod" ]; then
+            FULL_VERSION="$BASE_VERSION"
+          else
+            FULL_VERSION="${BASE_VERSION}-${BRANCH_NAME}.${RUN_NUMBER}.${SHORT_SHA}"
+          fi
+          echo "version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Calculated version: $FULL_VERSION"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet build --configuration Release --no-restore -p:Version="$PACKAGE_VERSION"
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      - name: Pack NuGet packages
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet pack --configuration Release --no-build \
+            -p:PackageVersion="$PACKAGE_VERSION" \
+            -o ./output/nuget
+
+      - name: Upload packages as artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nuget-packages
+          path: ./output/nuget/*.nupkg
+          retention-days: 30
+
+      - name: Push to nuget.org (per-owner routing)
+        env:
+          NUGET_API_KEY_CANTON: ${{ secrets.NUGET_API_KEY_CANTON }}
+          NUGET_API_KEY_DAML: ${{ secrets.NUGET_API_KEY_DAML }}
+          NUGET_API_KEY_SPLICE: ${{ secrets.NUGET_API_KEY_SPLICE }}
+          NUGET_API_KEY_PEACEFUL: ${{ secrets.NUGET_API_KEY_PEACEFUL }}
+        run: |
+          set -euo pipefail
+          echo "## nuget.org push" >> "$GITHUB_STEP_SUMMARY"
+          .github-actions-helpers/scripts/route-nuget-push.sh ./output/nuget | tee -a "$GITHUB_STEP_SUMMARY"
