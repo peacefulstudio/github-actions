@@ -72,13 +72,16 @@ jobs:
 
           if [ "$EVENT_NAME" = "release" ]; then
             VERSION="${RELEASE_TAG#v}"
+            if [ -z "$VERSION" ]; then
+              echo "::error::release event fired but RELEASE_TAG is empty; cannot determine version" >&2
+              exit 1
+            fi
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             echo "Using release tag version: $VERSION"
             exit 0
           fi
 
-          BASE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props || true)
-          if [ -z "$BASE_VERSION" ]; then
+          if ! BASE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props 2>/dev/null); then
             echo "::error::Directory.Build.props is missing or has no <Version> element; cannot compute a pre-release version." >&2
             exit 1
           fi
@@ -128,5 +131,6 @@ jobs:
           NUGET_API_KEY_PEACEFUL: ${{ secrets.NUGET_API_KEY_PEACEFUL }}
         run: |
           set -euo pipefail
-          echo "## nuget.org push" >> "$GITHUB_STEP_SUMMARY"
-          .github-actions-helpers/scripts/route-nuget-push.sh ./output/nuget | tee -a "$GITHUB_STEP_SUMMARY"
+          summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+          echo "## nuget.org push" >> "$summary"
+          .github-actions-helpers/scripts/route-nuget-push.sh ./output/nuget | tee -a "$summary"
