@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `include_symbols` input (default `true`) on `csharp-publish-public.yaml` — generates and publishes `.snupkg` symbol packages to the nuget.org symbol server alongside the main packages. Set to `false` to publish `.nupkg` only. (#7)
+
+### Changed
+
+- `csharp-publish-public.yaml` now builds with `ContinuousIntegrationBuild=true` for deterministic, path-normalized Release builds. (#7)
+
 ## [1.1.0] - 2026-05-27
 
 ### Added
