@@ -23,7 +23,11 @@ Lints every workflow file in `.github/workflows/` with
 errors, shell-quoting bugs, undefined contexts, and other static issues
 before they ship.
 
-**Inputs**: none.
+**Inputs**:
+
+| Input     | Default         | Description                                                                                                                                                              |
+| --------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runs-on` | `ubuntu-latest` | Runner label(s) for the job. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. Honoured only on `workflow_call`. |
 
 **Required secrets**: none.
 
@@ -66,7 +70,7 @@ If no modules are discovered the build/test/lint steps are skipped, so the workf
 | `go-version`            | `stable`         | Passed to `actions/setup-go`.                                                                                                                |
 | `module-paths`          | `go cli`         | Space-separated directories to search for `go.mod`. Missing directories are silently ignored.                                                |
 | `golangci-lint-version` | `latest`         | Version selector for `go install`. Tags starting with `v2` install from `github.com/golangci/golangci-lint/v2/cmd/golangci-lint` (needed for v2 config files); anything else uses the v1 module path. Pin a tag (e.g. `v1.61.0` or `v2.12.2`) for reproducible runs. |
-| `runs-on`               | `ubuntu-latest`  | Runner label for all jobs.                                                                                                                   |
+| `runs-on`               | `ubuntu-latest`  | Runner label(s) for all jobs. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. |
 
 **Required secrets**: none. PR comments use the default `GITHUB_TOKEN`.
 
@@ -116,9 +120,12 @@ Produces a Cobertura coverage report, a markdown summary, and a sticky
 PR comment with per-project coverage. Uploads `.nupkg` artifacts when
 `pack: true`.
 
-A configurable `os-list` matrix runs build + test across one or several
-runners (Linux / macOS / Windows). Coverage report generation only runs
-on the `ubuntu-latest` shard.
+A configurable matrix runs build + test across one or several runners. The
+simple `os-list` form takes a JSON array of runner labels (Linux / macOS /
+Windows) and runs coverage on the `ubuntu-latest` shard. For finer control —
+mixing self-hosted and hosted runners, array-valued runner labels, or
+choosing which shard carries coverage — use `build-matrix` instead (see
+[Selecting runners](#selecting-runners)).
 
 **Inputs** (selected — see the workflow file for the full set):
 
@@ -126,7 +133,8 @@ on the `ubuntu-latest` shard.
 | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | `dotnet-version`              | `10.0.x`                 | Passed to `actions/setup-dotnet`.                                                            |
 | `working-directory`           | `.`                      | Path of the .NET workspace.                                                                  |
-| `os-list`                     | `["ubuntu-latest"]`      | JSON array of runner labels for the build-and-test matrix.                                   |
+| `os-list`                     | `["ubuntu-latest"]`      | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. |
+| `build-matrix`                | *(empty)*                | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners). |
 | `test-project`                | *(empty)*                | Specific test project / solution path; empty runs the workspace default `.sln` / `.slnx`.    |
 | `test-filter`                 | *(empty)*                | Forwarded to `dotnet test --filter`.                                                         |
 | `coverage-pr-comment-header`  | `csharp-coverage`        | Sticky-comment header (make unique per workspace if a repo calls this workflow more than once). |
@@ -215,9 +223,13 @@ Runs `sbt clean coverage test coverageReport` against the workspace at
 sticky PR comment + job summary with the rendered coverage table and
 uploads the raw Cobertura XML as a build artifact.
 
-A configurable `os-list` matrix runs build + test across one or several
-runners. Coverage report generation, the sticky PR comment, the job
-summary, and the artifact upload only run on the `ubuntu-latest` shard.
+A configurable matrix runs build + test across one or several runners. The
+simple `os-list` form takes a JSON array of runner labels and runs coverage,
+the sticky PR comment, the job summary, and the artifact upload on the
+`ubuntu-latest` shard. For finer control — mixing self-hosted and hosted
+runners, array-valued runner labels, or choosing which shard carries
+coverage — use `build-matrix` instead (see
+[Selecting runners](#selecting-runners)).
 
 **Inputs**:
 
@@ -226,7 +238,8 @@ summary, and the artifact upload only run on the `ubuntu-latest` shard.
 | `working-directory`           | `.`                                                  | Path of the sbt/Scala workspace. Also used as the prefix for `cobertura-path` and when hashing sbt files for the cache key.            |
 | `java-version`                | `21`                                                 | Passed to `actions/setup-java`.                                                                                                        |
 | `java-distribution`           | `temurin`                                            | Passed to `actions/setup-java`.                                                                                                        |
-| `os-list`                     | `["ubuntu-latest"]`                                  | JSON array of runner labels for the build-and-test matrix.                                                                             |
+| `os-list`                     | `["ubuntu-latest"]`                                  | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set.                                         |
+| `build-matrix`                | *(empty)*                                            | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners).                   |
 | `cobertura-path`              | `target/scala-2.13/coverage-report/cobertura.xml`    | Path (relative to `working-directory`) of the Cobertura XML emitted by `sbt coverageReport`. Override for non-2.13 Scala majors.       |
 | `coverage-pr-comment-header`  | `scala-coverage`                                     | Hidden HTML-comment dedup key for the sticky PR comment. Make unique per language / per repo if multiple coverage comments coexist.    |
 | `coverage-artifact-name`      | `scala-coverage`                                     | Name of the uploaded Cobertura artifact. Must not collide with other coverage artifacts uploaded by sibling jobs in the same run.      |
@@ -320,7 +333,7 @@ configuration is loaded — matching the Terraform CLI's convention.
 | `working-directory`   | `terraform`        | Path (relative to the repo root) where the Terraform workspace lives. Use `.` for repos with `.tf` files at the root.                                  |
 | `module-paths`        | *(empty)*          | Optional space-separated list of module directories (relative to `working-directory`). Missing entries emit a `::warning::` and are skipped.           |
 | `pr-comment-header`   | `terraform-tests`  | Sticky-comment header. Set per-workspace if a repo calls this workflow more than once on the same PR.                                                  |
-| `runs-on`             | `ubuntu-latest`    | Runner label for the job.                                                                                                                              |
+| `runs-on`             | `ubuntu-latest`    | Runner label(s) for the job. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. |
 
 **Required secrets**: none. PR comments use the default `GITHUB_TOKEN`.
 
@@ -359,6 +372,56 @@ jobs:
       working-directory: '.'
       module-paths: 'deployments/deployment/internal deployments/deployment/customer modules/canton-node modules/postgres'
 ```
+
+## Selecting runners
+
+Every workflow lets the caller choose where jobs run, so org repos can move
+CI onto self-hosted runners (e.g. the Hetzner pool, labels
+`["self-hosted", "hetzner"]`) and off paid hosted minutes.
+
+`go-ci`, `terraform-ci`, and `build-and-test` expose a single `runs-on`
+input that accepts either a plain label or a JSON array string:
+
+```yaml
+jobs:
+  terraform-ci:
+    uses: peacefulstudio/github-actions/.github/workflows/terraform-ci.yaml@v1
+    with:
+      runs-on: '["self-hosted", "hetzner"]'   # array string → all labels required
+      # runs-on: hetzner                       # or a single label
+```
+
+`csharp-ci` and `scala-ci` take a richer `build-matrix` for cross-platform
+builds that mix self-hosted and hosted runners. It is a JSON array of
+shards, each `{ name, runner, coverage }`:
+
+```yaml
+jobs:
+  csharp-ci:
+    uses: peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v1
+    with:
+      build-matrix: >-
+        [
+          {"name": "linux-amd64", "runner": ["self-hosted", "hetzner"], "coverage": true},
+          {"name": "linux-arm64", "runner": "ubuntu-24.04-arm"},
+          {"name": "windows-amd64", "runner": "windows-latest"}
+        ]
+```
+
+- `name` — the shard label shown in the `build-and-test (<name>)` job title.
+- `runner` — passed verbatim to `runs-on`; either a plain label string or a
+  JSON array of labels (a real array, e.g. `["self-hosted", "hetzner"]` —
+  not a quoted string).
+- `coverage` — optional, defaults to `false`. **At most one** shard may set
+  `coverage: true`; that shard produces the coverage report, sticky PR
+  comment, job summary (and, for `scala-ci`, the Cobertura artifact). More
+  than one is rejected to avoid racing the merged report and duplicating the
+  comment. Setting it on no shard is allowed — the run then produces no
+  coverage report.
+
+`build-matrix` fully replaces `os-list` when set. Omit it (or leave it
+empty) to keep the `os-list` behaviour: each label becomes a shard, and the
+`ubuntu-latest` shard — if present — carries coverage.
 
 ## Pinning
 

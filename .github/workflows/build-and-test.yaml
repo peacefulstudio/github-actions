@@ -5,13 +5,24 @@ name: build-and-test
 
 on:
   workflow_call:
+    inputs:
+      runs-on:
+        description: >-
+          Runner label(s) for the job. Pass a plain label (e.g.
+          'ubuntu-latest' or 'hetzner') or a JSON array string to require
+          multiple labels (e.g. '["self-hosted", "hetzner"]'). Only honoured
+          on `workflow_call`; the `push` / `pull_request` triggers always run
+          on the default.
+        required: false
+        type: string
+        default: 'ubuntu-latest'
   push:
     branches: [dev, stage, prod]
   pull_request:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on && (startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on) || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -29,4 +40,7 @@ jobs:
         run: ./actionlint -color
 
       - name: Run shell script tests
-        run: bash test/route-nuget-push_test.sh
+        run: |
+          set -euo pipefail
+          bash test/route-nuget-push_test.sh
+          bash test/normalize-ci-matrix_test.sh
