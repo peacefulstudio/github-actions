@@ -45,10 +45,27 @@ on:
           Examples: '["ubuntu-latest"]', '["ubuntu-latest","macos-latest","windows-latest"]'.
           Coverage report generation (merge, summary, PR comment, job summary)
           only runs on the `ubuntu-latest` shard; if your matrix excludes
-          `ubuntu-latest`, no coverage report will be produced.
+          `ubuntu-latest`, no coverage report will be produced. Ignored when
+          `build-matrix` is set.
         required: false
         type: string
         default: '["ubuntu-latest"]'
+      build-matrix:
+        description: >-
+          Optional JSON array of build shards, each an object
+          `{ "name": <label>, "runner": <runner>, "coverage": <bool> }`.
+          When non-empty it fully replaces `os-list`: each entry becomes one
+          `build-and-test` shard, `runner` is passed verbatim to `runs-on`
+          (a plain label, or a JSON array of labels such as
+          ["self-hosted", "hetzner"] to require multiple labels), and
+          `coverage` (default false) selects the shard that produces the
+          coverage report, sticky PR comment, and job summary. At most one
+          entry may set `coverage: true` (zero is allowed — no report is then
+          produced). Use this to mix self-hosted and hosted runners (e.g.
+          linux on self-hosted, windows/arm on hosted).
+        required: false
+        type: string
+        default: ''
       test-project:
         description: >-
           Optional path (relative to working-directory) of a specific test
@@ -139,13 +156,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  normalize:
+    name: normalize matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.compute.outputs.matrix }}
+    steps:
+      - name: Checkout CI helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: v1
+          path: .github-actions-helpers
+      - name: Compute effective matrix
+        id: compute
+        env:
+          BUILD_MATRIX: ${{ inputs.build-matrix }}
+          OS_LIST: ${{ inputs.os-list }}
+        run: |
+          set -euo pipefail
+          matrix=$(.github-actions-helpers/scripts/normalize-ci-matrix.sh "$BUILD_MATRIX" "$OS_LIST")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   build-and-test:
-    name: build-and-test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: build-and-test (${{ matrix.name }})
+    needs: normalize
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.os-list) }}
+        include: ${{ fromJSON(needs.normalize.outputs.matrix) }}
     permissions:
       contents: read
       packages: read
@@ -164,7 +204,7 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
 
       - name: Install dotnet-coverage
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ matrix.coverage }}
         env:
           DOTNET_COVERAGE_VERSION: ${{ inputs.dotnet-coverage-version }}
         run: |
@@ -200,7 +240,7 @@ jobs:
           dotnet "${args[@]}"
 
       - name: Merge per-project cobertura reports
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ matrix.coverage }}
         env:
           TESTS_GLOB: ${{ inputs.tests-glob }}
         run: |
@@ -220,7 +260,7 @@ jobs:
             "${cobertura_files[@]}"
 
       - name: Code Coverage Summary Report
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ matrix.coverage }}
         uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
         with:
           filename: '${{ inputs.working-directory }}/coverage/merged.cobertura.xml'
@@ -229,7 +269,7 @@ jobs:
           output: both
 
       - name: Prepend coverage title
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ matrix.coverage }}
         working-directory: ${{ github.workspace }}
         env:
           COVERAGE_TITLE: ${{ inputs.coverage-title }}
@@ -243,7 +283,7 @@ jobs:
           mv code-coverage-results.tmp code-coverage-results.md
 
       - name: Add Coverage PR Comment
-        if: matrix.os == 'ubuntu-latest' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+        if: ${{ matrix.coverage && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           recreate: true
@@ -251,7 +291,7 @@ jobs:
           path: code-coverage-results.md
 
       - name: Write to Job Summary
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ matrix.coverage }}
         working-directory: ${{ github.workspace }}
         run: |
           set -euo pipefail

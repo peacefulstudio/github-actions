@@ -52,14 +52,17 @@ on:
         type: string
         default: 'Go coverage'
       runs-on:
-        description: Runner label for all jobs.
+        description: >-
+          Runner label(s) for all jobs. Pass a plain label (e.g.
+          'ubuntu-latest' or 'hetzner') or a JSON array string to require
+          multiple labels (e.g. '["self-hosted", "hetzner"]').
         required: false
         type: string
         default: 'ubuntu-latest'
 
 jobs:
   build-and-test:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
     permissions:
       contents: read
       pull-requests: write
@@ -286,7 +289,7 @@ jobs:
         run: cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
 
   lint:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
     permissions:
       contents: read
     steps:

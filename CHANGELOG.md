@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `build-matrix` input on `csharp-ci.yaml` and `scala-ci.yaml` — optional JSON array of `{ name, runner, coverage }` shards that fully replaces `os-list` when set. Lets a caller mix self-hosted and hosted runners, pass array-valued `runs-on` labels (e.g. `["self-hosted", "hetzner"]`), and pick the single shard that carries the coverage report / sticky PR comment / job summary. Backed by a new tested helper, `scripts/normalize-ci-matrix.sh`, checked out and run in a `normalize` job; it fails loud (with a `::error::` annotation) on a malformed matrix — more than one `coverage: true` shard, a missing/empty `name` or `runner`, a non-boolean `coverage`, or invalid JSON. Omitting `build-matrix` keeps `os-list` behaviour bit-for-bit.
+- `runs-on` input on `build-and-test.yaml` (default `ubuntu-latest`) — honoured on `workflow_call`; accepts a plain label or a JSON array string.
 - `include_symbols` input (default `true`) on `csharp-publish-public.yaml` — generates and publishes `.snupkg` symbol packages to the nuget.org symbol server alongside the main packages. Set to `false` to publish `.nupkg` only. (#7)
 
 ### Changed
 
+- `runs-on` on `go-ci.yaml` and `terraform-ci.yaml` now accepts a JSON array string (e.g. `'["self-hosted", "hetzner"]'`) in addition to a plain label, so callers can target self-hosted runner pools that require multiple labels. Plain-label callers are unaffected.
 - `csharp-publish-public.yaml` now builds with `ContinuousIntegrationBuild=true` for deterministic, path-normalized Release builds. (#7)
 
 ## [1.1.0] - 2026-05-27
