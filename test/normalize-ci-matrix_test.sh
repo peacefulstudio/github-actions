@@ -118,4 +118,34 @@ check_rc "non-boolean coverage exit 1" 1 "$rc"
 run '[{"name":"a","runner":"ubuntu-latest"' ''
 check_rc "invalid json exit 1" 1 "$rc"
 
+run "" "" "public"
+check_rc "public visibility default exit 0" 0 "$rc"
+check "public visibility 3-shard matrix" \
+  '[{"coverage":true,"name":"ubuntu-latest","runner":"ubuntu-latest"},{"coverage":false,"name":"windows-latest","runner":"windows-latest"},{"coverage":false,"name":"macos-latest","runner":"macos-latest"}]' \
+  "$out"
+
+run "" "" "private"
+check_rc "private visibility default exit 0" 0 "$rc"
+check "private visibility single hetzner shard" \
+  '[{"coverage":true,"name":"linux","runner":["self-hosted","hetzner"]}]' "$out"
+
+run "" "" "internal"
+check_rc "internal visibility default exit 0" 0 "$rc"
+check "internal treated as private" \
+  '[{"coverage":true,"name":"linux","runner":["self-hosted","hetzner"]}]' "$out"
+
+run "" '["ubuntu-latest"]' "private"
+check_rc "explicit os-list wins over visibility exit 0" 0 "$rc"
+check "explicit os-list wins over visibility" \
+  '[{"coverage":true,"name":"ubuntu-latest","runner":"ubuntu-latest"}]' "$out"
+
+run '[{"name":"a","runner":"x","coverage":false}]' '' "public"
+check_rc "explicit build-matrix wins over visibility exit 0" 0 "$rc"
+check "explicit build-matrix wins over visibility" \
+  '[{"coverage":false,"name":"a","runner":"x"}]' "$out"
+
+run "" "" "bogus"
+check_rc "unexpected visibility exit 1" 1 "$rc"
+check_contains "unexpected visibility annotated" "::error::unexpected repo visibility 'bogus'" "$err"
+
 exit $fail

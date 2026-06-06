@@ -5,6 +5,10 @@ set -euo pipefail
 
 build_matrix="${1:-}"
 os_list="${2:-}"
+visibility="${3:-}"
+
+public_default='[{"name":"ubuntu-latest","runner":"ubuntu-latest","coverage":true},{"name":"windows-latest","runner":"windows-latest","coverage":false},{"name":"macos-latest","runner":"macos-latest","coverage":false}]'
+private_default='[{"name":"linux","runner":["self-hosted","hetzner"],"coverage":true}]'
 
 transform() {
   local program="$1" input="$2" what="$3"
@@ -22,8 +26,19 @@ transform() {
   fi
 }
 
+if [ -z "$build_matrix" ] && [ -z "$os_list" ] && [ -n "$visibility" ]; then
+  case "$visibility" in
+    public)            build_matrix="$public_default" ;;
+    private|internal)  build_matrix="$private_default" ;;
+    *)
+      echo "::error::unexpected repo visibility '$visibility' (expected public, private, or internal)" >&2
+      exit 1
+      ;;
+  esac
+fi
+
 if [ -z "$build_matrix" ] && [ -z "$os_list" ]; then
-  echo "::error::no matrix source provided: pass a non-empty build-matrix or os-list" >&2
+  echo "::error::no matrix source provided: pass a non-empty build-matrix, os-list, or visibility" >&2
   exit 1
 fi
 
