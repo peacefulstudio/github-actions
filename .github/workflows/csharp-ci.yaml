@@ -46,10 +46,14 @@ on:
           Coverage report generation (merge, summary, PR comment, job summary)
           only runs on the `ubuntu-latest` shard; if your matrix excludes
           `ubuntu-latest`, no coverage report will be produced. Ignored when
-          `build-matrix` is set.
+          `build-matrix` is set. When both `os-list` and `build-matrix` are
+          empty, the matrix defaults by repository visibility: public repos
+          get ubuntu-latest + windows-latest + macos-latest (coverage on
+          ubuntu); private and internal repos get a single shard on the
+          self-hosted Hetzner pool (`["self-hosted","hetzner"]`).
         required: false
         type: string
-        default: '["ubuntu-latest"]'
+        default: ''
       build-matrix:
         description: >-
           Optional JSON array of build shards, each an object
@@ -159,6 +163,8 @@ jobs:
   normalize:
     name: normalize matrix
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.compute.outputs.matrix }}
     steps:
@@ -171,11 +177,16 @@ jobs:
       - name: Compute effective matrix
         id: compute
         env:
+          GH_TOKEN: ${{ github.token }}
           BUILD_MATRIX: ${{ inputs.build-matrix }}
           OS_LIST: ${{ inputs.os-list }}
         run: |
           set -euo pipefail
-          matrix=$(.github-actions-helpers/scripts/normalize-ci-matrix.sh "$BUILD_MATRIX" "$OS_LIST")
+          visibility=""
+          if [ -z "$BUILD_MATRIX" ] && [ -z "$OS_LIST" ]; then
+            visibility=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.visibility')
+          fi
+          matrix=$(.github-actions-helpers/scripts/normalize-ci-matrix.sh "$BUILD_MATRIX" "$OS_LIST" "$visibility")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build-and-test:
