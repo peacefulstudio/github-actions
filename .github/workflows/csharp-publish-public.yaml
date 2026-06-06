@@ -10,6 +10,11 @@ on:
         description: 'Override version (leave empty for auto-calculated)'
         required: false
         type: string
+      include_symbols:
+        description: 'Generate and publish .snupkg symbol packages alongside .nupkg'
+        required: false
+        type: boolean
+        default: true
     secrets:
       NUGET_API_KEY_CANTON:
         description: nuget.org API key for Canton.* packages.
@@ -103,7 +108,7 @@ jobs:
       - name: Build
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
-        run: dotnet build --configuration Release --no-restore -p:Version="$PACKAGE_VERSION"
+        run: dotnet build --configuration Release --no-restore -p:Version="$PACKAGE_VERSION" -p:ContinuousIntegrationBuild=true
 
       - name: Test
         run: dotnet test --configuration Release --no-build
@@ -111,16 +116,22 @@ jobs:
       - name: Pack NuGet packages
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+          INCLUDE_SYMBOLS: ${{ inputs.include_symbols }}
         run: |
           dotnet pack --configuration Release --no-build \
             -p:PackageVersion="$PACKAGE_VERSION" \
+            -p:IncludeSymbols="$INCLUDE_SYMBOLS" \
+            -p:SymbolPackageFormat=snupkg \
             -o ./output/nuget
 
       - name: Upload packages as artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nuget-packages
-          path: ./output/nuget/*.nupkg
+          path: |
+            ./output/nuget/*.nupkg
+            ./output/nuget/*.snupkg
+          if-no-files-found: ignore
           retention-days: 30
 
       - name: Push to nuget.org (per-owner routing)
