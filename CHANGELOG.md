@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `working_directory` (default `.`) and `test_filter` (default empty) inputs on `csharp-publish-public.yaml`. `working_directory` runs the restore/build/test/pack steps from a sub-path (the pack output stays at `$GITHUB_WORKSPACE/output/nuget` so the root-level push step is unaffected), letting repos whose solution lives below the root — e.g. `canton-localnet`'s `csharp/` — use the reusable workflow. `test_filter` passes a `dotnet test --filter` expression (e.g. `Category!=Integration`) to exclude tests that need live infrastructure. Both default to the previous behaviour, so existing callers are bit-for-bit unaffected.
+- `working-directory` (default `.`) and `test-filter` (default empty) inputs on `csharp-publish-public.yaml`, matching the names used by `csharp-ci.yaml`. `working-directory` runs the restore/build/test/pack steps from a sub-path (the pack output stays at `$GITHUB_WORKSPACE/output/nuget` so the root-level push step is unaffected), letting repos whose solution lives below the root — e.g. `canton-localnet`'s `csharp/` — use the reusable workflow. `test-filter` passes a `dotnet test --filter` expression (e.g. `Category!=Integration`) to exclude tests that need live infrastructure. Both default to the previous behaviour, so existing callers are bit-for-bit unaffected.
 
 ### Changed
 
