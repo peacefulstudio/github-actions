@@ -58,14 +58,50 @@ on:
         description: >-
           Runner label(s) for all jobs. Pass a plain label (e.g.
           'ubuntu-latest' or 'hetzner') or a JSON array string to require
-          multiple labels (e.g. '["self-hosted", "hetzner"]').
+          multiple labels (e.g. '["self-hosted", "hetzner"]'). When empty,
+          the runner defaults by repository visibility: public repos use
+          ubuntu-latest; private and internal repos use the self-hosted
+          Hetzner pool (`["self-hosted","hetzner"]`).
         required: false
         type: string
-        default: 'ubuntu-latest'
+        default: ''
 
 jobs:
+  resolve-runner:
+    name: resolve runner
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - name: Checkout CI helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ github.repository == 'peacefulstudio/github-actions' && github.sha || 'v1' }}
+          path: .github-actions-helpers
+      - name: Pick runner
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNS_ON: ${{ inputs.runs-on }}
+        run: |
+          set -euo pipefail
+          visibility=""
+          if [ -z "$RUNS_ON" ]; then
+            visibility=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.visibility')
+          fi
+          runner=$(.github-actions-helpers/scripts/resolve-runner.sh "$RUNS_ON" "$visibility")
+          {
+            echo "runner<<__RUNNER_EOF__"
+            echo "$runner"
+            echo "__RUNNER_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
   validate-and-test:
-    runs-on: ${{ startsWith(inputs.runs-on, '[') && fromJSON(inputs.runs-on) || inputs.runs-on }}
+    needs: resolve-runner
+    runs-on: ${{ startsWith(needs.resolve-runner.outputs.runner, '[') && fromJSON(needs.resolve-runner.outputs.runner) || needs.resolve-runner.outputs.runner }}
     permissions:
       contents: read
       pull-requests: write

@@ -27,7 +27,7 @@ before they ship.
 
 | Input     | Default         | Description                                                                                                                                                              |
 | --------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `runs-on` | `ubuntu-latest` | Runner label(s) for the job. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. Honoured only on `workflow_call`. |
+| `runs-on` | *(by visibility)* | Runner label(s) for the job. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. Honoured only on `workflow_call`. When empty, defaults by repo visibility (public → ubuntu-latest; private/internal → ["self-hosted","hetzner"]). |
 
 **Required secrets**: none.
 
@@ -70,7 +70,7 @@ If no modules are discovered the build/test/lint steps are skipped, so the workf
 | `go-version`            | `stable`         | Passed to `actions/setup-go`.                                                                                                                |
 | `module-paths`          | `go cli`         | Space-separated directories to search for `go.mod`. Missing directories are silently ignored.                                                |
 | `golangci-lint-version` | `latest`         | Version selector for `go install`. Tags starting with `v2` install from `github.com/golangci/golangci-lint/v2/cmd/golangci-lint` (needed for v2 config files); anything else uses the v1 module path. Pin a tag (e.g. `v1.61.0` or `v2.12.2`) for reproducible runs. |
-| `runs-on`               | `ubuntu-latest`  | Runner label(s) for all jobs. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. |
+| `runs-on`               | *(by visibility)*  | Runner label(s) for all jobs. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. When empty, defaults by repo visibility (public → ubuntu-latest; private/internal → ["self-hosted","hetzner"]). |
 
 **Required secrets**: none. PR comments use the default `GITHUB_TOKEN`.
 
@@ -133,7 +133,7 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | `dotnet-version`              | `10.0.x`                 | Passed to `actions/setup-dotnet`.                                                            |
 | `working-directory`           | `.`                      | Path of the .NET workspace.                                                                  |
-| `os-list`                     | `["ubuntu-latest"]`      | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. |
+| `os-list`                     | *(by visibility)*        | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. Empty + empty build-matrix → matrix by repo visibility (public → ubuntu/windows/macos; private/internal → Hetzner). |
 | `build-matrix`                | *(empty)*                | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners). |
 | `test-project`                | *(empty)*                | Specific test project / solution path; empty runs the workspace default `.sln` / `.slnx`.    |
 | `test-filter`                 | *(empty)*                | Forwarded to `dotnet test --filter`.                                                         |
@@ -238,7 +238,7 @@ coverage — use `build-matrix` instead (see
 | `working-directory`           | `.`                                                  | Path of the sbt/Scala workspace. Also used as the prefix for `cobertura-path` and when hashing sbt files for the cache key.            |
 | `java-version`                | `21`                                                 | Passed to `actions/setup-java`.                                                                                                        |
 | `java-distribution`           | `temurin`                                            | Passed to `actions/setup-java`.                                                                                                        |
-| `os-list`                     | `["ubuntu-latest"]`                                  | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set.                                         |
+| `os-list`                     | *(by visibility)*                                    | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. Empty + empty build-matrix → matrix by repo visibility (public → ubuntu/windows/macos; private/internal → Hetzner).                   |
 | `build-matrix`                | *(empty)*                                            | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners).                   |
 | `cobertura-path`              | `target/scala-2.13/coverage-report/cobertura.xml`    | Path (relative to `working-directory`) of the Cobertura XML emitted by `sbt coverageReport`. Override for non-2.13 Scala majors.       |
 | `coverage-pr-comment-header`  | `scala-coverage`                                     | Hidden HTML-comment dedup key for the sticky PR comment. Make unique per language / per repo if multiple coverage comments coexist.    |
@@ -320,10 +320,12 @@ workflow runs `terraform test` from the parent module so the module's
 configuration is loaded — matching the Terraform CLI's convention.
 
 > **Runner requirement.** Discovery uses `find -printf`, which is
-> GNU-only. The default `ubuntu-latest` runner is fine; if you
-> override `runs-on` to a `macos-*` or self-hosted runner without GNU
-> findutils, module/test discovery silently returns empty and the job
-> goes green without validating anything.
+> GNU-only. On GitHub-hosted `ubuntu-latest` (the public-repo default)
+> this is fine. Private and internal repos default to the self-hosted
+> Hetzner pool — those runners must have GNU findutils installed, or
+> pin `runs-on: ubuntu-latest`. On any `macos-*` or self-hosted runner
+> without GNU findutils, module/test discovery silently returns empty
+> and the job goes green without validating anything.
 
 **Inputs**:
 
@@ -333,7 +335,7 @@ configuration is loaded — matching the Terraform CLI's convention.
 | `working-directory`   | `terraform`        | Path (relative to the repo root) where the Terraform workspace lives. Use `.` for repos with `.tf` files at the root.                                  |
 | `module-paths`        | *(empty)*          | Optional space-separated list of module directories (relative to `working-directory`). Missing entries emit a `::warning::` and are skipped.           |
 | `pr-comment-header`   | `terraform-tests`  | Sticky-comment header. Set per-workspace if a repo calls this workflow more than once on the same PR.                                                  |
-| `runs-on`             | `ubuntu-latest`    | Runner label(s) for the job. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. |
+| `runs-on`             | *(by visibility)*  | Runner label(s) for the job. A plain label (`ubuntu-latest`, `hetzner`) or a JSON array string (`'["self-hosted", "hetzner"]'`) to require multiple labels. When empty, defaults by repo visibility (public → ubuntu-latest; private/internal → ["self-hosted","hetzner"]). |
 
 **Required secrets**: none. PR comments use the default `GITHUB_TOKEN`.
 
@@ -375,9 +377,21 @@ jobs:
 
 ## Selecting runners
 
-Every workflow lets the caller choose where jobs run, so org repos can move
-CI onto self-hosted runners (e.g. the Hetzner pool, labels
-`["self-hosted", "hetzner"]`) and off paid hosted minutes.
+By default the runner is chosen from the built repo's **visibility**: public
+repos run on GitHub-hosted runners (free minutes) and private / internal repos
+run on the self-hosted Hetzner pool (labels `["self-hosted", "hetzner"]`). For
+`csharp-ci` / `scala-ci` the public default is a three-shard matrix
+(`ubuntu-latest` + `windows-latest` + `macos-latest`, coverage on ubuntu) and
+the private default is a single Hetzner shard; for `go-ci`, `terraform-ci`, and
+`build-and-test` the public default is `ubuntu-latest` and the private default
+is `["self-hosted", "hetzner"]`. Detection is a `gh api` visibility lookup; if
+it fails or returns an unexpected value the run aborts loudly rather than
+guessing a runner.
+
+To override the default, pass `runs-on` (or, for `csharp-ci` / `scala-ci`,
+`os-list` / `build-matrix`) — any explicit value wins. A private repo with no
+Hetzner runner should pin `runs-on: ubuntu-latest` (or `os-list:
+'["ubuntu-latest"]'`).
 
 `go-ci`, `terraform-ci`, and `build-and-test` expose a single `runs-on`
 input that accepts either a plain label or a JSON array string:
