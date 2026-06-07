@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+## [1.3.0] - 2026-06-07
+
+### Added
+
 - `build-matrix` input on `csharp-ci.yaml` and `scala-ci.yaml` — optional JSON array of `{ name, runner, coverage }` shards that fully replaces `os-list` when set. Lets a caller mix self-hosted and hosted runners, pass array-valued `runs-on` labels (e.g. `["self-hosted", "hetzner"]`), and pick the single shard that carries the coverage report / sticky PR comment / job summary. Backed by a new tested helper, `scripts/normalize-ci-matrix.sh`, checked out and run in a `normalize` job; it fails loud (with a `::error::` annotation) on a malformed matrix — more than one `coverage: true` shard, a missing/empty `name` or `runner`, a non-boolean `coverage`, or invalid JSON. Omitting `build-matrix` keeps `os-list` behaviour bit-for-bit.
 - `runs-on` input on `build-and-test.yaml` — honoured on `workflow_call`; accepts a plain label or a JSON array string.
 - `include_symbols` input (default `true`) on `csharp-publish-public.yaml` — generates and publishes `.snupkg` symbol packages to the nuget.org symbol server alongside the main packages. Set to `false` to publish `.nupkg` only. (#7)
@@ -18,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Default runner now follows repository visibility.** When a caller passes no `runs-on` (`go-ci`, `terraform-ci`, `build-and-test`) or no `os-list` / `build-matrix` (`csharp-ci`, `scala-ci`), the runner is selected by a `gh api` visibility lookup: public repos get GitHub-hosted runners (csharp/scala: `ubuntu-latest` + `windows-latest` + `macos-latest` with coverage on ubuntu; others: `ubuntu-latest`), private and internal repos get the self-hosted Hetzner pool (`["self-hosted", "hetzner"]`). The lookup fails loud on error or unexpected visibility — it never silently routes to self-hosted. Any explicit `runs-on` / `os-list` / `build-matrix` overrides this, so existing explicit callers are unaffected; a private repo with no Hetzner runner must pin `runs-on: ubuntu-latest`. The `os-list` (`csharp-ci`, `scala-ci`) and `runs-on` (`go-ci`, `terraform-ci`, `build-and-test`) input defaults changed from a literal to empty so "caller said nothing" is distinguishable from an explicit `ubuntu-latest`. Runner resolution for `go-ci` / `terraform-ci` / `build-and-test` is backed by a new tested helper, `scripts/resolve-runner.sh`, checked out and run in a `resolve-runner` job — mirroring the `normalize-ci-matrix.sh` job used by `csharp-ci` / `scala-ci`, so all five workflows share tested runner-selection helpers instead of duplicating inline shell.
 - `runs-on` on `go-ci.yaml` and `terraform-ci.yaml` now accepts a JSON array string (e.g. `'["self-hosted", "hetzner"]'`) in addition to a plain label, so callers can target self-hosted runner pools that require multiple labels. Plain-label callers are unaffected.
 - `csharp-publish-public.yaml` now builds with `ContinuousIntegrationBuild=true` for deterministic, path-normalized Release builds. (#7)
+
+## [1.2.0] - 2026-06-04
+
+### Added
+
+- `csharp-publish-public.yaml` — reusable workflow to publish NuGet packages to nuget.org, with per-owner push routing via a new tested `scripts/route-nuget-push.sh`. (#6)
 
 ## [1.1.0] - 2026-05-27
 
@@ -40,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/peacefulstudio/github-actions/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/peacefulstudio/github-actions/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/peacefulstudio/github-actions/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/peacefulstudio/github-actions/releases/tag/v1.0.0
