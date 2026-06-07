@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-## [1.3.0] - 2026-06-07
+## [1.4.0] - 2026-06-07
 
 ### Added
 
@@ -52,8 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v1.3.0...HEAD
-[1.3.0]: https://github.com/peacefulstudio/github-actions/compare/v1.2.0...v1.3.0
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/peacefulstudio/github-actions/compare/v1.2.0...v1.4.0
 [1.2.0]: https://github.com/peacefulstudio/github-actions/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/peacefulstudio/github-actions/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/peacefulstudio/github-actions/releases/tag/v1.0.0
