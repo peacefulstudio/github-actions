@@ -147,6 +147,10 @@ jobs:
           visibility=""
           if [ -z "$BUILD_MATRIX" ] && [ -z "$OS_LIST" ]; then
             visibility=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.visibility')
+            if [ -z "$visibility" ]; then
+              echo "::error::could not determine repository visibility (empty result from gh api)" >&2
+              exit 1
+            fi
           fi
           matrix=$(.github-actions-helpers/scripts/normalize-ci-matrix.sh "$BUILD_MATRIX" "$OS_LIST" "$visibility")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"

@@ -72,6 +72,12 @@ jobs:
     outputs:
       runner: ${{ steps.pick.outputs.runner }}
     steps:
+      - name: Checkout CI helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: v1
+          path: .github-actions-helpers
       - name: Pick runner
         id: pick
         env:
@@ -79,20 +85,16 @@ jobs:
           RUNS_ON: ${{ inputs.runs-on }}
         run: |
           set -euo pipefail
-          if [ -n "$RUNS_ON" ]; then
-            runner="$RUNS_ON"
-          else
+          visibility=""
+          if [ -z "$RUNS_ON" ]; then
             visibility=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.visibility')
-            case "$visibility" in
-              public)            runner='ubuntu-latest' ;;
-              private|internal)  runner='["self-hosted", "hetzner"]' ;;
-              *)
-                echo "::error::unexpected repo visibility '$visibility' (expected public, private, or internal)" >&2
-                exit 1
-                ;;
-            esac
           fi
-          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+          runner=$(.github-actions-helpers/scripts/resolve-runner.sh "$RUNS_ON" "$visibility")
+          {
+            echo "runner<<__RUNNER_EOF__"
+            echo "$runner"
+            echo "__RUNNER_EOF__"
+          } >> "$GITHUB_OUTPUT"
 
   build-and-test:
     needs: resolve-runner

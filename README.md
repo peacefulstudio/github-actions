@@ -320,10 +320,12 @@ workflow runs `terraform test` from the parent module so the module's
 configuration is loaded — matching the Terraform CLI's convention.
 
 > **Runner requirement.** Discovery uses `find -printf`, which is
-> GNU-only. The default `ubuntu-latest` runner is fine; if you
-> override `runs-on` to a `macos-*` or self-hosted runner without GNU
-> findutils, module/test discovery silently returns empty and the job
-> goes green without validating anything.
+> GNU-only. On GitHub-hosted `ubuntu-latest` (the public-repo default)
+> this is fine. Private and internal repos default to the self-hosted
+> Hetzner pool — those runners must have GNU findutils installed, or
+> pin `runs-on: ubuntu-latest`. On any `macos-*` or self-hosted runner
+> without GNU findutils, module/test discovery silently returns empty
+> and the job goes green without validating anything.
 
 **Inputs**:
 
