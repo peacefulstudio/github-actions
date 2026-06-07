@@ -1,1 +1,10 @@
+#LLMs
+/.claude
+/.agents
+
+.DS_Store
+
+docs/*
+!docs/public
+
 /test/_stub_push.sh
