@@ -15,6 +15,16 @@ on:
         required: false
         type: boolean
         default: true
+      working-directory:
+        description: 'Directory holding the solution to restore/build/test/pack (repo root by default).'
+        required: false
+        type: string
+        default: '.'
+      test-filter:
+        description: 'Optional dotnet test --filter expression (e.g. Category!=Integration). Empty runs every test.'
+        required: false
+        type: string
+        default: ''
     secrets:
       NUGET_API_KEY_CANTON:
         description: nuget.org API key for Canton.* packages.
@@ -61,6 +71,7 @@ jobs:
 
       - name: Get version info
         id: version
+        working-directory: ${{ inputs.working-directory }}
         env:
           VERSION_OVERRIDE: ${{ inputs.version_override }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
@@ -103,17 +114,29 @@ jobs:
           echo "Calculated version: $FULL_VERSION"
 
       - name: Restore dependencies
+        working-directory: ${{ inputs.working-directory }}
         run: dotnet restore
 
       - name: Build
+        working-directory: ${{ inputs.working-directory }}
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
         run: dotnet build --configuration Release --no-restore -p:Version="$PACKAGE_VERSION" -p:ContinuousIntegrationBuild=true
 
       - name: Test
-        run: dotnet test --configuration Release --no-build
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          TEST_FILTER: ${{ inputs.test-filter }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TEST_FILTER" ]; then
+            dotnet test --configuration Release --no-build --filter "$TEST_FILTER"
+          else
+            dotnet test --configuration Release --no-build
+          fi
 
       - name: Pack NuGet packages
+        working-directory: ${{ inputs.working-directory }}
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.version }}
           INCLUDE_SYMBOLS: ${{ inputs.include_symbols }}
@@ -122,7 +145,7 @@ jobs:
             -p:PackageVersion="$PACKAGE_VERSION" \
             -p:IncludeSymbols="$INCLUDE_SYMBOLS" \
             -p:SymbolPackageFormat=snupkg \
-            -o ./output/nuget
+            -o "$GITHUB_WORKSPACE/output/nuget"
 
       - name: Upload packages as artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
