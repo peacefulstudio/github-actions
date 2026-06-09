@@ -1,0 +1,11 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+name: Sort coverage table alphabetically
+description: >
+  Sorts the first markdown table in code-coverage-results.md alphabetically
+  by name column, keeping the summary row last.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: python3 "$GITHUB_ACTION_PATH/sort.py"

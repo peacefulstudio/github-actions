@@ -299,6 +299,10 @@ jobs:
             echo "</details>"
           } >> code-coverage-results.md
 
+      - name: Sort coverage table alphabetically
+        if: steps.discover.outputs.found == 'true'
+        uses: ./.github/actions/sort-coverage-table
+
       - name: Prepend coverage title
         if: steps.discover.outputs.found == 'true'
         env:

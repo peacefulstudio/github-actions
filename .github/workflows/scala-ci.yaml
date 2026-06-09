@@ -217,7 +217,12 @@ jobs:
           filename: '${{ inputs.working-directory }}/coverage/merged/Cobertura.xml'
           badge: true
           format: 'markdown'
+          hide_complexity: true
           output: 'both'
+
+      - name: Sort coverage table alphabetically
+        if: ${{ matrix.coverage }}
+        uses: ./.github/actions/sort-coverage-table
 
       - name: Prepend coverage title
         if: ${{ matrix.coverage }}
