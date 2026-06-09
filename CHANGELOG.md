@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Coverage PR comment tables (Scala, Go, C#) now list packages alphabetically by name.
+- Remove the Complexity column from the Scala coverage PR comment — `sbt` always emits 0 for this field.
+
 ## [1.4.0] - 2026-06-07
 
 ### Added

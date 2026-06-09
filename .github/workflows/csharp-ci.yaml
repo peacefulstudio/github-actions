@@ -283,6 +283,10 @@ jobs:
           format: markdown
           output: both
 
+      - name: Sort coverage table alphabetically
+        if: ${{ matrix.coverage }}
+        uses: ./.github/actions/sort-coverage-table
+
       - name: Prepend coverage title
         if: ${{ matrix.coverage }}
         working-directory: ${{ github.workspace }}
