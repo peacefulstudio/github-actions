@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING.** `csharp-publish-public.yaml` now publishes to nuget.org via NuGet Trusted Publishing (short-lived OIDC token exchanged for a temporary API key through `NuGet/login`) instead of long-lived API keys. The four `NUGET_API_KEY_*` secrets (`NUGET_API_KEY_CANTON`, `NUGET_API_KEY_DAML`, `NUGET_API_KEY_SPLICE`, `NUGET_API_KEY_PEACEFUL`) are removed. Callers must instead provide an organization secret `NUGET_USER` (the nuget.org profile name), grant `permissions: id-token: write`, and register a nuget.org Trusted Publishing policy (**Workflow File** = `csharp-publish-public.yaml` — the reusable file, not the caller; **Environment** = `nuget-publish`). `scripts/route-nuget-push.sh` is renamed to `scripts/push-nuget.sh`; per-owner key routing is removed since one user/key now pushes every package.
 - Coverage PR comment tables (Scala, Go, C#) now list packages alphabetically by name.
 - Remove the Complexity column from the Scala coverage PR comment — `sbt` always emits 0 for this field.
 
