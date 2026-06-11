@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Peaceful Studio OÜ
 # SPDX-License-Identifier: Apache-2.0
 
-name: CSharp Publish (public)
+name: CSharp Publish (public) [DEPRECATED]
 
 on:
   workflow_call:
@@ -41,6 +41,10 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: Deprecation notice
+        run: |
+          echo "::warning::csharp-publish-public.yaml is DEPRECATED. As a reusable workflow it runs the OIDC job in peacefulstudio/github-actions, so job_workflow_ref is always stamped 'github-actions' and a per-repo nuget Trusted Publishing policy can never match. Switch to the composite action peacefulstudio/github-actions/.github/actions/csharp-publish and mint the OIDC key (NuGet/login) in your own job."
+
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
