@@ -388,7 +388,9 @@ Publishing](https://learn.microsoft.com/en-gb/nuget/nuget-org/trusted-publishing
 it exchanges a short-lived GitHub OIDC token for a temporary nuget.org API
 key at run time. There are no long-lived API-key secrets. Each consumer must:
 
-1. Set an **organization secret** `NUGET_USER` — your nuget.org profile name.
+1. Set an **organization secret** `NUGET_USER` — your nuget.org profile name —
+   and pass it down with `secrets: inherit` (the reusable workflow reads
+   `secrets.NUGET_USER`, so without `inherit` the login runs with an empty user).
 2. Register a nuget.org Trusted Publishing policy with:
    - **Repository Owner** = your GitHub organization.
    - **Repository** = your repository.
