@@ -1,0 +1,141 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+
+name: CSharp Publish
+description: >-
+  Build, test, pack and push .NET NuGet packages to nuget.org. Runs inline as
+  steps in the caller's job so the OIDC job_workflow_ref stays the caller's
+  workflow, enabling per-repo NuGet Trusted Publishing. The caller checks out
+  its own code and mints the short-lived API key (NuGet/login); this action
+  does neither.
+
+inputs:
+  api-key:
+    description: 'Short-lived nuget.org API key minted by the caller''s NuGet/login step.'
+    required: true
+  version_override:
+    description: 'Override version (leave empty for auto-calculated).'
+    required: false
+  include_symbols:
+    description: 'Generate and publish .snupkg symbol packages alongside .nupkg.'
+    required: false
+    default: 'true'
+  working-directory:
+    description: 'Directory holding the solution to restore/build/test/pack (repo root by default).'
+    required: false
+    default: '.'
+  test-filter:
+    description: 'Optional dotnet test --filter expression (e.g. Category!=Integration). Empty runs every test.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Get version info
+      id: version
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        VERSION_OVERRIDE: ${{ inputs.version_override }}
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+        EVENT_NAME: ${{ github.event_name }}
+        RUN_NUMBER: ${{ github.run_number }}
+      run: |
+        set -euo pipefail
+
+        if [ -n "$VERSION_OVERRIDE" ]; then
+          echo "version=$VERSION_OVERRIDE" >> "$GITHUB_OUTPUT"
+          echo "Using override version: $VERSION_OVERRIDE"
+          exit 0
+        fi
+
+        if [ "$EVENT_NAME" = "release" ]; then
+          VERSION="${RELEASE_TAG#v}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::release event fired but RELEASE_TAG is empty; cannot determine version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Using release tag version: $VERSION"
+          exit 0
+        fi
+
+        if ! BASE_VERSION=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props 2>/dev/null); then
+          echo "::error::Directory.Build.props is missing or has no <Version> element; cannot compute a pre-release version." >&2
+          exit 1
+        fi
+
+        SHORT_SHA=$(git rev-parse --short HEAD)
+        BRANCH_NAME="${GITHUB_REF##*/}"
+        BRANCH_NAME="${BRANCH_NAME//[^0-9a-zA-Z]/-}"
+        if [ "$BRANCH_NAME" = "prod" ]; then
+          FULL_VERSION="$BASE_VERSION"
+        else
+          FULL_VERSION="${BASE_VERSION}-${BRANCH_NAME}.${RUN_NUMBER}.${SHORT_SHA}"
+        fi
+        echo "version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Calculated version: $FULL_VERSION"
+
+    - name: Restore dependencies
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: dotnet restore
+
+    - name: Build
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+      run: dotnet build --configuration Release --no-restore -p:Version="$PACKAGE_VERSION" -p:ContinuousIntegrationBuild=true
+
+    - name: Test
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TEST_FILTER: ${{ inputs.test-filter }}
+      run: |
+        set -euo pipefail
+        if [ -n "$TEST_FILTER" ]; then
+          dotnet test --configuration Release --no-build --filter "$TEST_FILTER"
+        else
+          dotnet test --configuration Release --no-build
+        fi
+
+    - name: Pack NuGet packages
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PACKAGE_VERSION: ${{ steps.version.outputs.version }}
+        INCLUDE_SYMBOLS: ${{ inputs.include_symbols }}
+      run: |
+        dotnet pack --configuration Release --no-build \
+          -p:PackageVersion="$PACKAGE_VERSION" \
+          -p:IncludeSymbols="$INCLUDE_SYMBOLS" \
+          -p:SymbolPackageFormat=snupkg \
+          -o "$GITHUB_WORKSPACE/output/nuget"
+
+    - name: Upload packages as artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: nuget-packages
+        path: |
+          ./output/nuget/*.nupkg
+          ./output/nuget/*.snupkg
+        if-no-files-found: ignore
+        retention-days: 30
+
+    - name: Push to nuget.org
+      shell: bash
+      env:
+        NUGET_API_KEY: ${{ inputs.api-key }}
+      run: |
+        set -euo pipefail
+        summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+        echo "## nuget.org push" >> "$summary"
+        "${{ github.action_path }}/../../../scripts/push-nuget.sh" ./output/nuget | tee -a "$summary"

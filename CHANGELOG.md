@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `.github/actions/csharp-publish` composite action — builds, tests, packs and pushes .NET NuGet packages to nuget.org, enabling NuGet Trusted Publishing (OIDC) for consumer repos. The caller checks out its own code and mints the short-lived API key via `NuGet/login` in its own job, then invokes the action with `steps: - uses: peacefulstudio/github-actions/.github/actions/csharp-publish@v1`, passing `api-key`. Because the action runs inline as steps in the caller's job, `job_workflow_ref` stays the caller's publish workflow, so a per-repo nuget Trusted Publishing policy anchored on the consumer repo matches. Inputs: `api-key` (required), `version_override`, `include_symbols` (default `true`), `working-directory` (default `.`), `test-filter` (default empty).
 - `working-directory` (default `.`) and `test-filter` (default empty) inputs on `csharp-publish-public.yaml`, matching the names used by `csharp-ci.yaml`. `working-directory` runs the restore/build/test/pack steps from a sub-path (the pack output stays at `$GITHUB_WORKSPACE/output/nuget` so the root-level push step is unaffected), letting repos whose solution lives below the root — e.g. `canton-localnet`'s `csharp/` — use the reusable workflow. `test-filter` passes a `dotnet test --filter` expression (e.g. `Category!=Integration`) to exclude tests that need live infrastructure. Both default to the previous behaviour, so existing callers are bit-for-bit unaffected.
+
+### Deprecated
+
+- **BREAKING for trusted publishing.** `csharp-publish-public.yaml` reusable workflow is deprecated. As a reusable workflow it runs the OIDC job in `peacefulstudio/github-actions`, so the `job_workflow_ref` claim is always stamped with `github-actions` and never the caller — a per-repo nuget Trusted Publishing policy anchored on the consumer repo can therefore never match (confirmed by a live HTTP 401). Consumers must switch to the `.github/actions/csharp-publish` composite action and mint the OIDC key (`NuGet/login`) in their own job.
 
 ### Changed
 
