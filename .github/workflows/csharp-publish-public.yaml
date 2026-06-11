@@ -25,19 +25,6 @@ on:
         required: false
         type: string
         default: ''
-    secrets:
-      NUGET_API_KEY_CANTON:
-        description: nuget.org API key for Canton.* packages.
-        required: false
-      NUGET_API_KEY_DAML:
-        description: nuget.org API key for Daml.* packages.
-        required: false
-      NUGET_API_KEY_SPLICE:
-        description: nuget.org API key for Splice.* packages.
-        required: false
-      NUGET_API_KEY_PEACEFUL:
-        description: nuget.org API key for Peaceful.* packages.
-        required: false
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -46,8 +33,10 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: nuget-publish
     permissions:
       contents: read
+      id-token: write
     defaults:
       run:
         shell: bash
@@ -157,14 +146,17 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-      - name: Push to nuget.org (per-owner routing)
+      - name: NuGet login (OIDC -> short-lived key)
+        id: nuget_login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
         env:
-          NUGET_API_KEY_CANTON: ${{ secrets.NUGET_API_KEY_CANTON }}
-          NUGET_API_KEY_DAML: ${{ secrets.NUGET_API_KEY_DAML }}
-          NUGET_API_KEY_SPLICE: ${{ secrets.NUGET_API_KEY_SPLICE }}
-          NUGET_API_KEY_PEACEFUL: ${{ secrets.NUGET_API_KEY_PEACEFUL }}
+          NUGET_API_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
           echo "## nuget.org push" >> "$summary"
-          .github-actions-helpers/scripts/route-nuget-push.sh ./output/nuget | tee -a "$summary"
+          .github-actions-helpers/scripts/push-nuget.sh ./output/nuget | tee -a "$summary"

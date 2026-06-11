@@ -375,6 +375,41 @@ jobs:
       module-paths: 'deployments/deployment/internal deployments/deployment/customer modules/canton-node modules/postgres'
 ```
 
+### `csharp-publish-public.yaml` — pack and publish to nuget.org
+
+Calculates the package version (release tag, `version_override`, or a
+branch-derived pre-release), then builds, tests, packs, uploads the
+`.nupkg`/`.snupkg` as artifacts, and pushes every package to nuget.org.
+
+#### Trusted publishing
+
+The workflow publishes to nuget.org with [NuGet Trusted
+Publishing](https://learn.microsoft.com/en-gb/nuget/nuget-org/trusted-publishing):
+it exchanges a short-lived GitHub OIDC token for a temporary nuget.org API
+key at run time. There are no long-lived API-key secrets. Each consumer must:
+
+1. Set an **organization secret** `NUGET_USER` — your nuget.org profile name.
+2. Register a nuget.org Trusted Publishing policy with:
+   - **Repository Owner** = your GitHub organization.
+   - **Repository** = your repository.
+   - **Workflow File** = `csharp-publish-public.yaml` — the **reusable**
+     file in this repo, *not* your caller workflow. The OIDC token is minted
+     inside the reusable workflow, so nuget.org matches the reusable file's
+     name.
+   - **Environment** = `nuget-publish`.
+3. Call the workflow with `permissions: id-token: write`. Reusable-workflow
+   permissions are capped by the caller, so the caller must grant this:
+
+```yaml
+jobs:
+  publish:
+    permissions:
+      contents: read
+      id-token: write
+    uses: peacefulstudio/github-actions/.github/workflows/csharp-publish-public.yaml@v1
+    secrets: inherit
+```
+
 ## Selecting runners
 
 By default the runner is chosen from the built repo's **visibility**: public
