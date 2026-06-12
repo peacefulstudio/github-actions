@@ -301,7 +301,7 @@ jobs:
 
       - name: Sort coverage table alphabetically
         if: steps.discover.outputs.found == 'true'
-        uses: ./.github/actions/sort-coverage-table
+        uses: peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1
 
       - name: Prepend coverage title
         if: steps.discover.outputs.found == 'true'

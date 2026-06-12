@@ -222,7 +222,7 @@ jobs:
 
       - name: Sort coverage table alphabetically
         if: ${{ matrix.coverage }}
-        uses: ./.github/actions/sort-coverage-table
+        uses: peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1
 
       - name: Prepend coverage title
         if: ${{ matrix.coverage }}
