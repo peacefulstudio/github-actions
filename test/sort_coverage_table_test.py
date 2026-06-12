@@ -84,6 +84,48 @@ class TestSortCoverageTable(unittest.TestCase):
         self.assertEqual(lines[5], "| com.example.zoo | 90% | N/A | ✔ |")
         self.assertEqual(lines[6], "| **Summary** | **83%** | **N/A** | |")
 
+    def test_irongut_csharp_markdown_without_leading_pipes_sorts_rows(self):
+        text = (
+            "![Code Coverage](https://img.shields.io/badge/Code%20Coverage-85%25-success?style=flat)\n"
+            "\n"
+            "Package | Line Rate | Branch Rate | Complexity | Health\n"
+            "-------- | --------- | ----------- | ---------- | ------\n"
+            "Daml.Codegen.CSharp | 82% | 94% | 934 | ✔\n"
+            "Canton.LedgerApi | 91% | 89% | 412 | ✔\n"
+            "Daml.Codegen.Abstractions | 78% | 95% | 215 | ✔\n"
+            "**Summary** | **85%** (3942 / 4628) | **93%** (1375 / 1474) | **1561** | ✔\n"
+            "\n"
+            "<!-- Sticky Pull Request Commentcsharp-coverage -->\n"
+        )
+        expected = (
+            "![Code Coverage](https://img.shields.io/badge/Code%20Coverage-85%25-success?style=flat)\n"
+            "\n"
+            "Package | Line Rate | Branch Rate | Complexity | Health\n"
+            "-------- | --------- | ----------- | ---------- | ------\n"
+            "Canton.LedgerApi | 91% | 89% | 412 | ✔\n"
+            "Daml.Codegen.Abstractions | 78% | 95% | 215 | ✔\n"
+            "Daml.Codegen.CSharp | 82% | 94% | 934 | ✔\n"
+            "**Summary** | **85%** (3942 / 4628) | **93%** (1375 / 1474) | **1561** | ✔\n"
+            "\n"
+            "<!-- Sticky Pull Request Commentcsharp-coverage -->\n"
+        )
+        self.assertEqual(sort_coverage_table(text), expected)
+
+    def test_without_leading_pipes_sort_is_case_insensitive(self):
+        text = (
+            "Name | Line Rate\n"
+            "---- | ---------\n"
+            "zoo | 80%\n"
+            "Apple | 90%\n"
+        )
+        lines = sort_coverage_table(text).splitlines()
+        self.assertEqual(lines[2], "Apple | 90%")
+        self.assertEqual(lines[3], "zoo | 80%")
+
+    def test_header_without_separator_is_not_a_table(self):
+        text = "a | b\nplain text without pipes\n"
+        self.assertEqual(sort_coverage_table(text), text)
+
     def test_go_fixture_with_details_section_unsorted(self):
         text = (
             "![Code Coverage](https://img.shields.io/badge/Code%20Coverage-75%25-red)\n"

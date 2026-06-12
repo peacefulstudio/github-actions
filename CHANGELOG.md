@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the coverage-table sort being a silent no-op for C# coverage comments — `irongut/CodeCoverageSummary` `format: markdown` emits tables without leading pipes, which the `sort-coverage-table` action did not recognize as tables; it now detects a header line followed by a `---` separator line with or without leading pipes. (#18)
+
 ## [2.0.0] - 2026-06-12
 
 **Migration:** reference workflows and actions at `@v2` (e.g. `peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v2`). The floating `v1` tag is frozen at the v1.5.x state and will no longer advance.
