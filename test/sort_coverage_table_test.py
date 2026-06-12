@@ -6,7 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '.github', 'actions', 'sort-coverage-table'))
-from sort import sort_coverage_table
+from sort import contains_table, sort_coverage_table
 
 TABLE_HEADER = "| Name | Line Rate |\n| :-- | :-: |\n"
 
@@ -152,6 +152,46 @@ class TestSortCoverageTable(unittest.TestCase):
         self.assertEqual(lines[6], "| **Summary** | **75%** | **N/A** | **2.7** | |")
         self.assertEqual(lines[13], "| 15 | `zoo_func` | `zoo/zoo.go:42` | ✓ 80.0% |")
         self.assertEqual(lines[14], "| 5 | `apple_func` | `apple/apple.go:10` | ✗ 0.0% |")
+    def test_real_go_document_pipe_less_coverage_table_with_gocyclo_details(self):
+        text = (
+            "![Code Coverage](https://img.shields.io/badge/Code%20Coverage-75%25-red)\n"
+            "\n"
+            "Package | Line Rate | Branch Rate | Complexity | Health\n"
+            "-------- | --------- | ----------- | ---------- | ------\n"
+            "github.com/example/zoo | 80% | N/A | 3.2 | ✔\n"
+            "github.com/example/apple | 70% | N/A | 2.1 | ✗\n"
+            "**Summary** | **75%** | **N/A** | **2.7** | ✗\n"
+            "\n"
+            "<details>\n"
+            "<summary>Cyclomatic complexity — top 10 production functions (average 2.7)</summary>\n"
+            "\n"
+            "| Complexity | Function | Location | Attended |\n"
+            "| ---------: | -------- | -------- | :------- |\n"
+            "| 15 | `zoo_func` | `zoo/zoo.go:42` | ✓ 80.0% |\n"
+            "| 5 | `apple_func` | `apple/apple.go:10` | ✗ 0.0% |\n"
+            "\n"
+            "</details>\n"
+        )
+        lines = sort_coverage_table(text).splitlines()
+        self.assertEqual(lines[4], "github.com/example/apple | 70% | N/A | 2.1 | ✗")
+        self.assertEqual(lines[5], "github.com/example/zoo | 80% | N/A | 3.2 | ✔")
+        self.assertEqual(lines[6], "**Summary** | **75%** | **N/A** | **2.7** | ✗")
+        self.assertEqual(lines[13], "| 15 | `zoo_func` | `zoo/zoo.go:42` | ✓ 80.0% |")
+        self.assertEqual(lines[14], "| 5 | `apple_func` | `apple/apple.go:10` | ✗ 0.0% |")
+
+    def test_contains_table_detects_pipe_less_irongut_table(self):
+        text = (
+            "Package | Line Rate | Health\n"
+            "-------- | --------- | ------\n"
+            "github.com/example/zoo | 80% | ✔\n"
+        )
+        self.assertTrue(contains_table(text))
+
+    def test_contains_table_detects_leading_pipe_table(self):
+        self.assertTrue(contains_table(TABLE_HEADER + "| Zoo | 80% |\n"))
+
+    def test_contains_table_is_false_when_no_table_present(self):
+        self.assertFalse(contains_table("Just some text\na | b without a separator line\n"))
 
 
 if __name__ == '__main__':

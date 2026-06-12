@@ -33,6 +33,11 @@ def _first_cell(row: str) -> str:
     return _cells(row)[0].strip()
 
 
+def contains_table(text: str) -> bool:
+    lines = text.splitlines(keepends=True)
+    return any(_is_table_start(lines, i) for i in range(len(lines)))
+
+
 def sort_coverage_table(text: str) -> str:
     lines = text.splitlines(keepends=True)
     result, i, sorted_first = [], 0, False
@@ -62,6 +67,8 @@ if __name__ == '__main__':
     import os
     with open('code-coverage-results.md') as f:
         text = f.read()
+    if not contains_table(text):
+        print('::warning::sort-coverage-table: no markdown table detected in code-coverage-results.md — output left unchanged')
     with open('code-coverage-results.md.tmp', 'w') as f:
         f.write(sort_coverage_table(text))
     os.replace('code-coverage-results.md.tmp', 'code-coverage-results.md')
