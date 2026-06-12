@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage PR comment tables (Scala, Go, C#) now list packages alphabetically by name.
 - Remove the Complexity column from the Scala coverage PR comment — `sbt` always emits 0 for this field.
 
+### Fixed
+
+- Fix `csharp-ci.yaml`, `go-ci.yaml` and `scala-ci.yaml` failing in every consumer repo that runs the coverage step with "Can't find 'action.yml' … under '.github/actions/sort-coverage-table'" — the coverage-sort step referenced the action by local path, which resolves against the **caller's** checkout, not this repo. The step now references `peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1`.
+
 ## [1.4.0] - 2026-06-07
 
 ### Added
