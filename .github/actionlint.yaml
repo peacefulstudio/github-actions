@@ -1,0 +1,5 @@
+paths:
+  .github/workflows/csharp-ci.yaml:
+    # actionlint 1.7.7's job-context schema predates job.workflow_sha (documented in the GitHub Actions contexts reference)
+    ignore:
+      - 'property "workflow_sha" is not defined in object type'

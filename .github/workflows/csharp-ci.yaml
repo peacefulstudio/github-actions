@@ -172,7 +172,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: peacefulstudio/github-actions
-          ref: v1
+          # job.workflow_sha pins helpers to the exact commit of this called workflow, so SHA-pinned callers don't get v1-floating helpers
+          ref: ${{ job.workflow_sha }}
           path: .github-actions-helpers
       - name: Compute effective matrix
         id: compute
@@ -272,9 +273,18 @@ jobs:
           format: markdown
           output: both
 
+      - name: Checkout CI helpers
+        if: ${{ matrix.coverage }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+
       - name: Sort coverage table alphabetically
         if: ${{ matrix.coverage }}
-        uses: peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1
+        # local path instead of the remote tag ref (#16): consumer repos with GitHub's sha_pinning_required Actions policy reject `owner/repo/path@tag`, and a tag ref would drift from SHA-pinned workflow calls anyway
+        uses: ./.github-actions-helpers/.github/actions/sort-coverage-table
 
       - name: Prepend coverage title
         if: ${{ matrix.coverage }}
