@@ -16,8 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING for trusted publishing.** `csharp-publish-public.yaml` reusable workflow is deprecated. As a reusable workflow it runs the OIDC job in `peacefulstudio/github-actions`, so the `job_workflow_ref` claim is always stamped with `github-actions` and never the caller — a per-repo nuget Trusted Publishing policy anchored on the consumer repo can therefore never match (confirmed by a live HTTP 401). Consumers must switch to the `.github/actions/csharp-publish` composite action and mint the OIDC key (`NuGet/login`) in their own job.
 
+### Removed
+
+- **BREAKING.** `dotnet-coverage-version` input on `csharp-ci.yaml` — the `dotnet-coverage` global tool install and the cobertura merge step are gone; `irongut/CodeCoverageSummary` now aggregates the per-project `*.cobertura.xml` files (matched by `tests-glob`) itself. A tool-free guard still fails the job loud when the glob matches no files. No known caller passes this input; any caller that does must drop it before moving to this version. (#17)
+
 ### Changed
 
+- **BREAKING.** `csharp-ci.yaml` `dotnet-version` input default changed from `'10.0.x'` to empty. When empty, the .NET SDK is resolved from the caller repo's `global.json` under `working-directory` — the file must exist or setup fails loud. Pass an explicit `dotnet-version` to keep overriding. Callers relying on the old default must add a `global.json` (a future SDK bump is then a caller-side change only). (#17)
 - **BREAKING.** `csharp-publish-public.yaml` now publishes to nuget.org via NuGet Trusted Publishing (short-lived OIDC token exchanged for a temporary API key through `NuGet/login`) instead of long-lived API keys. The four `NUGET_API_KEY_*` secrets (`NUGET_API_KEY_CANTON`, `NUGET_API_KEY_DAML`, `NUGET_API_KEY_SPLICE`, `NUGET_API_KEY_PEACEFUL`) are removed. Callers must instead provide an organization secret `NUGET_USER` (the nuget.org profile name), grant `permissions: id-token: write`, and register a nuget.org Trusted Publishing policy (**Workflow File** = `csharp-publish-public.yaml` — the reusable file, not the caller; **Environment** = `nuget-publish`). `scripts/route-nuget-push.sh` is renamed to `scripts/push-nuget.sh`; per-owner key routing is removed since one user/key now pushes every package.
 - Coverage PR comment tables (Scala, Go, C#) now list packages alphabetically by name.
 - Remove the Complexity column from the Scala coverage PR comment — `sbt` always emits 0 for this field.
