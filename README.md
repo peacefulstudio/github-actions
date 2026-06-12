@@ -178,7 +178,10 @@ stay on a previous SHA / tag until you've migrated the items below.
 
 - **`Directory.Packages.props` pinning**:
   - `xunit.v3` — `3.2.2`
-  - `Microsoft.Testing.Extensions.CodeCoverage` — `18.0.6`.
+  - `Microsoft.Testing.Extensions.CodeCoverage` — `18.0.6`, matching the
+    `dotnet-coverage` global tool version the workflow pins for merging
+    the per-project cobertura reports into a single file before
+    summarizing — keep them aligned.
   See [`canton-ledger-api-csharp#79`](https://github.com/peacefulstudio/canton-ledger-api-csharp/pull/79)
   for the MTP 1.x / 2.x compatibility rationale: do not bump
   `CodeCoverage` past 18.0.x until `xunit.v3` ships an MTP 2.x build —

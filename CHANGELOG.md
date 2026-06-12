@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix the coverage-table sort being a silent no-op for C# coverage comments — `irongut/CodeCoverageSummary` `format: markdown` emits tables without leading pipes, which the `sort-coverage-table` action did not recognize as tables; it now detects a header line followed by a `---` separator line with or without leading pipes. (#18)
+- Fix diluted C# coverage numbers when multiple test projects cover the same assemblies: `csharp-ci.yaml` again union-merges the per-project cobertura files (matched by `tests-glob`) into one report via the `dotnet-coverage` global tool (pinned to 18.0.6 inside the workflow — no input) before `irongut/CodeCoverageSummary` runs, instead of letting irongut concatenate them with duplicated, partial package rows. The input/secret contract is unchanged.
 
 ## [2.0.0] - 2026-06-12
 
