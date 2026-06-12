@@ -7,14 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-12
+
+**Migration:** reference workflows and actions at `@v2` (e.g. `peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v2`). The floating `v1` tag is frozen at the v1.5.x state and will no longer advance.
+
+### Changed
+
+- All reusable workflows now check out their helper scripts (`normalize-ci-matrix.sh`, `resolve-runner.sh`, `push-nuget.sh`) and the `sort-coverage-table` action at `job.workflow_sha` — the exact commit of the called workflow — instead of the floating `v1` tag. Callers pinning a SHA or an exact version tag now get the helpers matching that exact version, and cutting a release no longer risks breaking consumers at runtime by forgetting to advance a floating tag. (#17)
+- **BREAKING.** `csharp-ci.yaml` `dotnet-version` input default changed from `'10.0.x'` to empty. When empty, the .NET SDK is resolved from the caller repo's `global.json` under `working-directory` — the file must exist or setup fails loud. Pass an explicit `dotnet-version` to keep overriding. Callers relying on the old default must add a `global.json` (a future SDK bump is then a caller-side change only). (#17)
+
+### Removed
+
+- **BREAKING.** `dotnet-coverage-version` input on `csharp-ci.yaml` — the `dotnet-coverage` global tool install and the cobertura merge step are gone; `irongut/CodeCoverageSummary` now aggregates the per-project `*.cobertura.xml` files (matched by `tests-glob`) itself. A tool-free guard still fails the job loud when the glob matches no files. No known caller passes this input; any caller that does must drop it before moving to this version. (#17)
+
+### Fixed
+
+- Fix `csharp-ci.yaml`, `go-ci.yaml` and `scala-ci.yaml` failing in every consumer repo that runs the coverage step with "Can't find 'action.yml' … under '.github/actions/sort-coverage-table'" — the coverage-sort step referenced the action by local path, which resolves against the **caller's** checkout, not this repo. The step now references `peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1`. (#16)
+
+## [1.5.0] - 2026-06-11
+
 ### Added
 
 - `.github/actions/csharp-publish` composite action — builds, tests, packs and pushes .NET NuGet packages to nuget.org, enabling NuGet Trusted Publishing (OIDC) for consumer repos. The caller checks out its own code and mints the short-lived API key via `NuGet/login` in its own job, then invokes the action with `steps: - uses: peacefulstudio/github-actions/.github/actions/csharp-publish@v1`, passing `api-key`. Because the action runs inline as steps in the caller's job, `job_workflow_ref` stays the caller's publish workflow, so a per-repo nuget Trusted Publishing policy anchored on the consumer repo matches. Inputs: `api-key` (required), `version_override`, `include_symbols` (default `true`), `working-directory` (default `.`), `test-filter` (default empty).
 - `working-directory` (default `.`) and `test-filter` (default empty) inputs on `csharp-publish-public.yaml`, matching the names used by `csharp-ci.yaml`. `working-directory` runs the restore/build/test/pack steps from a sub-path (the pack output stays at `$GITHUB_WORKSPACE/output/nuget` so the root-level push step is unaffected), letting repos whose solution lives below the root — e.g. `canton-localnet`'s `csharp/` — use the reusable workflow. `test-filter` passes a `dotnet test --filter` expression (e.g. `Category!=Integration`) to exclude tests that need live infrastructure. Both default to the previous behaviour, so existing callers are bit-for-bit unaffected.
-
-### Deprecated
-
-- **BREAKING for trusted publishing.** `csharp-publish-public.yaml` reusable workflow is deprecated. As a reusable workflow it runs the OIDC job in `peacefulstudio/github-actions`, so the `job_workflow_ref` claim is always stamped with `github-actions` and never the caller — a per-repo nuget Trusted Publishing policy anchored on the consumer repo can therefore never match (confirmed by a live HTTP 401). Consumers must switch to the `.github/actions/csharp-publish` composite action and mint the OIDC key (`NuGet/login`) in their own job.
 
 ### Changed
 
@@ -22,9 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage PR comment tables (Scala, Go, C#) now list packages alphabetically by name.
 - Remove the Complexity column from the Scala coverage PR comment — `sbt` always emits 0 for this field.
 
-### Fixed
+### Deprecated
 
-- Fix `csharp-ci.yaml`, `go-ci.yaml` and `scala-ci.yaml` failing in every consumer repo that runs the coverage step with "Can't find 'action.yml' … under '.github/actions/sort-coverage-table'" — the coverage-sort step referenced the action by local path, which resolves against the **caller's** checkout, not this repo. The step now references `peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1`.
+- **BREAKING for trusted publishing.** `csharp-publish-public.yaml` reusable workflow is deprecated. As a reusable workflow it runs the OIDC job in `peacefulstudio/github-actions`, so the `job_workflow_ref` claim is always stamped with `github-actions` and never the caller — a per-repo nuget Trusted Publishing policy anchored on the consumer repo can therefore never match (confirmed by a live HTTP 401). Consumers must switch to the `.github/actions/csharp-publish` composite action and mint the OIDC key (`NuGet/login`) in their own job.
 
 ## [1.4.0] - 2026-06-07
 
@@ -67,7 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/peacefulstudio/github-actions/compare/v1.5.0...v2.0.0
+[1.5.0]: https://github.com/peacefulstudio/github-actions/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/peacefulstudio/github-actions/compare/v1.2.0...v1.4.0
 [1.2.0]: https://github.com/peacefulstudio/github-actions/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/peacefulstudio/github-actions/compare/v1.0.0...v1.1.0

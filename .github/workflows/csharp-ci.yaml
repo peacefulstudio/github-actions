@@ -28,10 +28,15 @@ on:
         type: string
         default: ''
       dotnet-version:
-        description: .NET SDK version passed to actions/setup-dotnet.
+        description: >-
+          Explicit .NET SDK version passed to actions/setup-dotnet
+          (e.g. '10.0.x'). Empty (the default) resolves the SDK from the
+          caller repo's `global.json` under `working-directory` — the file
+          must exist or setup fails. Set this only to override the
+          global.json pin.
         required: false
         type: string
-        default: '10.0.x'
+        default: ''
       working-directory:
         description: >-
           Path (relative to the repo root) where the .NET workspace lives.
@@ -43,7 +48,7 @@ on:
         description: >-
           JSON array of runner labels for the build-and-test matrix.
           Examples: '["ubuntu-latest"]', '["ubuntu-latest","macos-latest","windows-latest"]'.
-          Coverage report generation (merge, summary, PR comment, job summary)
+          Coverage report generation (summary, PR comment, job summary)
           only runs on the `ubuntu-latest` shard; if your matrix excludes
           `ubuntu-latest`, no coverage report will be produced. Ignored when
           `build-matrix` is set. When both `os-list` and `build-matrix` are
@@ -107,22 +112,17 @@ on:
         required: false
         type: string
         default: 'C# coverage'
-      dotnet-coverage-version:
-        description: >-
-          Version of the `dotnet-coverage` global tool used to merge the
-          per-project cobertura reports MTP produces. Pinned by default;
-          override only if you need to track a newer line.
-        required: false
-        type: string
-        default: '18.0.6'
       tests-glob:
         description: >-
           Glob (relative to working-directory) used to locate the per-project
-          `*.cobertura.xml` files emitted by MTP's coverage extension. The
-          default narrows to `bin/Release/net*/` so that stale cobertura
-          files left over in source-controlled or scratch directories do
-          not get merged. Adjust if your tests live outside a top-level
-          `tests/` directory or target a non-Release configuration.
+          `*.cobertura.xml` files emitted by MTP's coverage extension, both
+          to assert coverage files were produced and as the `filename`
+          passed to irongut/CodeCoverageSummary, which aggregates all
+          matching files into the coverage report. The default narrows to
+          `bin/Release/net*/` so that stale cobertura files left over in
+          source-controlled or scratch directories do not get picked up.
+          Adjust if your tests live outside a top-level `tests/` directory
+          or target a non-Release configuration.
         required: false
         type: string
         default: 'tests/**/bin/Release/net*/**/*.cobertura.xml'
@@ -172,7 +172,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: peacefulstudio/github-actions
-          ref: v1
+          # job.workflow_sha pins helpers to the exact commit of this called workflow, so SHA-pinned callers don't get v1-floating helpers
+          ref: ${{ job.workflow_sha }}
           path: .github-actions-helpers
       - name: Compute effective matrix
         id: compute
@@ -215,16 +216,10 @@ jobs:
 
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        # actions/setup-dotnet installs BOTH dotnet-version and global-json-file when both are non-empty, and hard-fails on a missing global-json-file path — so the global.json path is only passed when no explicit version overrides it
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
-
-      - name: Install dotnet-coverage
-        if: ${{ matrix.coverage }}
-        env:
-          DOTNET_COVERAGE_VERSION: ${{ inputs.dotnet-coverage-version }}
-        run: |
-          set -euo pipefail
-          dotnet tool update -g dotnet-coverage --version "$DOTNET_COVERAGE_VERSION"
+          global-json-file: ${{ inputs.dotnet-version == '' && ((inputs.working-directory == '.' || inputs.working-directory == '') && 'global.json' || format('{0}/global.json', inputs.working-directory)) || '' }}
 
       - name: Restore
         env:
@@ -254,13 +249,12 @@ jobs:
           fi
           dotnet "${args[@]}"
 
-      - name: Merge per-project cobertura reports
+      - name: Assert coverage files produced
         if: ${{ matrix.coverage }}
         env:
           TESTS_GLOB: ${{ inputs.tests-glob }}
         run: |
           set -euo pipefail
-          mkdir -p coverage
           shopt -s globstar nullglob
           # shellcheck disable=SC2206  # intentional word-split: $TESTS_GLOB is a glob pattern (sourced from inputs.tests-glob via env:), expanded under globstar+nullglob
           cobertura_files=($TESTS_GLOB)
@@ -268,24 +262,28 @@ jobs:
             echo "::error::No .cobertura.xml files produced under '$TESTS_GLOB' — did MTP coverage extension run? See the 'Caller prerequisites' subsection under csharp-ci.yaml in the peacefulstudio/github-actions README."
             exit 1
           fi
-          echo "Merging ${#cobertura_files[@]} cobertura files: ${cobertura_files[*]}"
-          dotnet-coverage merge \
-            -o coverage/merged.cobertura.xml \
-            -f cobertura \
-            "${cobertura_files[@]}"
+          echo "Found ${#cobertura_files[@]} cobertura files: ${cobertura_files[*]}"
 
       - name: Code Coverage Summary Report
         if: ${{ matrix.coverage }}
         uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
         with:
-          filename: '${{ inputs.working-directory }}/coverage/merged.cobertura.xml'
+          filename: ${{ (inputs.working-directory == '.' || inputs.working-directory == '') && inputs.tests-glob || format('{0}/{1}', inputs.working-directory, inputs.tests-glob) }}
           badge: true
           format: markdown
           output: both
 
+      - name: Checkout CI helpers
+        if: ${{ matrix.coverage }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+
       - name: Sort coverage table alphabetically
         if: ${{ matrix.coverage }}
-        uses: peacefulstudio/github-actions/.github/actions/sort-coverage-table@v1
+        uses: ./.github-actions-helpers/.github/actions/sort-coverage-table
 
       - name: Prepend coverage title
         if: ${{ matrix.coverage }}
@@ -295,7 +293,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -f code-coverage-results.md ]; then
-            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the merged cobertura path"
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check that tests-glob matches the cobertura files MTP produced"
             exit 1
           fi
           printf '## %s\n\n' "$COVERAGE_TITLE" | cat - code-coverage-results.md > code-coverage-results.tmp
@@ -315,7 +313,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -f code-coverage-results.md ]; then
-            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check the filename input and the merged cobertura path"
+            echo "::error::code-coverage-results.md not produced by irongut/CodeCoverageSummary — check that tests-glob matches the cobertura files MTP produced"
             exit 1
           fi
           cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
@@ -356,8 +354,10 @@ jobs:
 
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        # actions/setup-dotnet installs BOTH dotnet-version and global-json-file when both are non-empty, and hard-fails on a missing global-json-file path — so the global.json path is only passed when no explicit version overrides it
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
+          global-json-file: ${{ inputs.dotnet-version == '' && ((inputs.working-directory == '.' || inputs.working-directory == '') && 'global.json' || format('{0}/global.json', inputs.working-directory)) || '' }}
 
       - name: Restore
         env:

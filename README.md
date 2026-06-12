@@ -131,7 +131,7 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 
 | Input                         | Default                  | Description                                                                                  |
 | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------- |
-| `dotnet-version`              | `10.0.x`                 | Passed to `actions/setup-dotnet`.                                                            |
+| `dotnet-version`              | *(empty)*                | Explicit SDK override for `actions/setup-dotnet`. Empty resolves the SDK from the caller's `global.json` under `working-directory` (the file must exist). |
 | `working-directory`           | `.`                      | Path of the .NET workspace.                                                                  |
 | `os-list`                     | *(by visibility)*        | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. Empty + empty build-matrix → matrix by repo visibility (public → ubuntu/windows/macos; private/internal → Hetzner). |
 | `build-matrix`                | *(empty)*                | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners). |
@@ -171,13 +171,14 @@ This workflow runs tests end-to-end on **xUnit v3 + Microsoft.Testing.Platform
 (MTP)**. Callers still on xUnit v2 + coverlet cannot pin to this workflow —
 stay on a previous SHA / tag until you've migrated the items below.
 
+- **`global.json`** at `working-directory` pinning the .NET SDK version —
+  required unless the caller passes an explicit `dotnet-version` input.
+  Bumping to a new SDK line is then a caller-side `global.json` change;
+  no release of this workflow is needed.
+
 - **`Directory.Packages.props` pinning**:
   - `xunit.v3` — `3.2.2`
-  - `Microsoft.Testing.Extensions.CodeCoverage` — same version as the
-    workflow input `dotnet-coverage-version` (default `18.0.6`).
-  The MTP coverage extension version is pinned deliberately and the
-  `dotnet-coverage-version` workflow input is the single source of truth
-  for the matching global tool used at merge time — keep them aligned.
+  - `Microsoft.Testing.Extensions.CodeCoverage` — `18.0.6`.
   See [`canton-ledger-api-csharp#79`](https://github.com/peacefulstudio/canton-ledger-api-csharp/pull/79)
   for the MTP 1.x / 2.x compatibility rationale: do not bump
   `CodeCoverage` past 18.0.x until `xunit.v3` ships an MTP 2.x build —
@@ -466,7 +467,7 @@ jobs:
 - `coverage` — optional, defaults to `false`. **At most one** shard may set
   `coverage: true`; that shard produces the coverage report, sticky PR
   comment, job summary (and, for `scala-ci`, the Cobertura artifact). More
-  than one is rejected to avoid racing the merged report and duplicating the
+  than one is rejected to avoid racing the coverage report and duplicating the
   comment. Setting it on no shard is allowed — the run then produces no
   coverage report.
 
