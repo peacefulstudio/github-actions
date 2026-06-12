@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-12
+
 ### Fixed
 
-- Fix the coverage-table sort being a silent no-op for C# coverage comments — `irongut/CodeCoverageSummary` `format: markdown` emits tables without leading pipes, which the `sort-coverage-table` action did not recognize as tables; it now detects a header line followed by a `---` separator line with or without leading pipes. (#18)
-- Fix diluted C# coverage numbers when multiple test projects cover the same assemblies: `csharp-ci.yaml` again union-merges the per-project cobertura files (matched by `tests-glob`) into one report via the `dotnet-coverage` global tool (version resolved from the caller's `Directory.Packages.props` pin of `Microsoft.Testing.Extensions.CodeCoverage`, nested files under `working-directory` included — no input; a missing, non-literal, or conflicting pin fails loud) before `irongut/CodeCoverageSummary` runs, instead of letting irongut concatenate them with duplicated, partial package rows. The input/secret contract is unchanged.
+- Fix the coverage-table sort being a silent no-op for C# coverage comments — `irongut/CodeCoverageSummary` `format: markdown` emits tables without leading pipes, which the `sort-coverage-table` action did not recognize as tables; it now detects a header line followed by a `---` separator line with or without leading pipes, and emits a `::warning::` when no table is found at all. (#18, #19)
+- Fix diluted C# coverage numbers when multiple test projects cover the same assemblies: `csharp-ci.yaml` again union-merges the per-project cobertura files (matched by `tests-glob`) into one report via the `dotnet-coverage` global tool (version resolved from the caller's `Directory.Packages.props` pin of `Microsoft.Testing.Extensions.CodeCoverage`, nested files under `working-directory` included — no input; a missing, non-literal, or conflicting pin fails loud) before `irongut/CodeCoverageSummary` runs, instead of letting irongut concatenate them with duplicated, partial package rows. The input/secret contract is unchanged. (#19)
 
 ## [2.0.0] - 2026-06-12
 
@@ -87,7 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/peacefulstudio/github-actions/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/peacefulstudio/github-actions/compare/v1.5.0...v2.0.0
 [1.5.0]: https://github.com/peacefulstudio/github-actions/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/peacefulstudio/github-actions/compare/v1.2.0...v1.4.0
