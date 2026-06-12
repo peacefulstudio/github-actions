@@ -221,10 +221,26 @@ jobs:
           dotnet-version: ${{ inputs.dotnet-version }}
           global-json-file: ${{ inputs.dotnet-version == '' && ((inputs.working-directory == '.' || inputs.working-directory == '') && 'global.json' || format('{0}/global.json', inputs.working-directory)) || '' }}
 
+      - name: Checkout CI helpers
+        if: ${{ matrix.coverage }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+
+      - name: Resolve dotnet-coverage version
+        if: ${{ matrix.coverage }}
+        id: dotnet-coverage
+        run: |
+          set -euo pipefail
+          version=$(python3 "$GITHUB_WORKSPACE/.github-actions-helpers/scripts/resolve-dotnet-coverage-version.py" .)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Install dotnet-coverage
         if: ${{ matrix.coverage }}
         env:
-          DOTNET_COVERAGE_VERSION: '18.0.6'
+          DOTNET_COVERAGE_VERSION: ${{ steps.dotnet-coverage.outputs.version }}
         run: |
           set -euo pipefail
           dotnet tool update -g dotnet-coverage --version "$DOTNET_COVERAGE_VERSION"
@@ -286,14 +302,6 @@ jobs:
           badge: true
           format: markdown
           output: both
-
-      - name: Checkout CI helpers
-        if: ${{ matrix.coverage }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: peacefulstudio/github-actions
-          ref: ${{ job.workflow_sha }}
-          path: .github-actions-helpers
 
       - name: Sort coverage table alphabetically
         if: ${{ matrix.coverage }}
