@@ -283,7 +283,6 @@ jobs:
 
       - name: Sort coverage table alphabetically
         if: ${{ matrix.coverage }}
-        # local path instead of the remote tag ref (#16): consumer repos with GitHub's sha_pinning_required Actions policy reject `owner/repo/path@tag`, and a tag ref would drift from SHA-pinned workflow calls anyway
         uses: ./.github-actions-helpers/.github/actions/sort-coverage-table
 
       - name: Prepend coverage title
