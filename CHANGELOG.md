@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-14
+
 ### Added
 
 - Add live README status badges driven from CI: a new `update-badges.yaml` reusable workflow writes shields.io endpoint JSON to an orphan `badges` branch of the caller repo (built-in `GITHUB_TOKEN`, no gist or PAT), fed by new `coverage` and `matrix-status` outputs on `csharp-ci.yaml` and `scala-ci.yaml`, so a consumer README can show live coverage and per-platform (OS × arch) CI badges alongside the standard release/version badges. (#23)
