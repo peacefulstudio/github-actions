@@ -1,0 +1,64 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+
+name: Update Badges
+
+on:
+  workflow_call:
+    inputs:
+      coverage-data:
+        description: >-
+          JSON array of per-language coverage entries, each
+          `{ "slug": <file-suffix>, "label": <badge-left-text>, "percent": <int|""> }`.
+          Entries with an empty or null `percent` are skipped (no badge for a
+          language that produced no coverage). Writes `coverage-<slug>.json`
+          per entry to the badge branch. Default `'[]'` writes no coverage badge.
+        required: false
+        type: string
+        default: '[]'
+      matrix-data:
+        description: >-
+          JSON array of per-shard CI results, each
+          `{ "lang": <file-prefix>, "os": <name>, "arch": <name>, "passed": <bool> }`.
+          Writes `ci-<lang>-<os>-<arch>.json` per entry. Default `'[]'` writes
+          no matrix badges.
+        required: false
+        type: string
+        default: '[]'
+      badge-branch:
+        description: >-
+          Orphan branch of the caller repo where the shields.io endpoint
+          JSON is written. The caller must grant `permissions: contents:
+          write` so the built-in GITHUB_TOKEN can push to it.
+        required: false
+        type: string
+        default: 'badges'
+
+jobs:
+  update-badges:
+    name: update-badges
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+
+      - name: Write badges
+        if: ${{ inputs.coverage-data != '[]' || inputs.matrix-data != '[]' }}
+        env:
+          COVERAGE_DATA: ${{ inputs.coverage-data }}
+          MATRIX_DATA: ${{ inputs.matrix-data }}
+          BADGE_BRANCH: ${{ inputs.badge-branch }}
+        run: |
+          set -euo pipefail
+          .github-actions-helpers/scripts/write-badges.sh
