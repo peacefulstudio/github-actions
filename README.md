@@ -419,6 +419,54 @@ jobs:
     secrets: inherit
 ```
 
+### `update-badges.yaml` — live coverage + CI matrix badges via an orphan branch
+
+Writes [shields.io endpoint](https://shields.io/badges/endpoint-badge) JSON
+to an orphan `badges` branch of the **caller** repo using the built-in
+`GITHUB_TOKEN` — no gist and no PAT. A single post-CI writer renders every
+badge file in one commit, so a README can show live coverage and per-platform
+CI badges from that branch's raw URLs. Opt-in and public-repo-oriented.
+
+`csharp-ci.yaml` / `scala-ci.yaml` expose a `coverage` output (integer
+percentage from the coverage shard, empty when no shard sets `coverage: true`)
+and a `matrix-status` output (per-shard `{name, os, arch, passed}` results) to
+feed it. Wire them together in the consumer, gating on `main` and granting
+`contents: write`:
+
+```yaml
+jobs:
+  csharp-ci:
+    uses: peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v2
+    secrets: inherit
+  badges:
+    needs: csharp-ci
+    if: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+    uses: peacefulstudio/github-actions/.github/workflows/update-badges.yaml@v2
+    with:
+      coverage-data: >-
+        [{"slug":"csharp","label":"coverage","percent":"${{ needs.csharp-ci.outputs.coverage }}"}]
+      matrix-data: ${{ needs.csharp-ci.outputs.matrix-status }}
+```
+
+Inputs (all optional):
+
+- `coverage-data` — JSON array of `{slug, label, percent}`; writes one
+  `coverage-<slug>.json` per entry (entries with an empty/null `percent` are
+  skipped). Default `'[]'` writes no coverage badge.
+- `matrix-data` — JSON array of `{lang, os, arch, passed}`; writes one
+  `ci-<lang>-<os>-<arch>.json` per entry. Tag each `matrix-status` entry with a
+  `lang` first (so one badge branch can hold several languages). Default `'[]'`.
+- `badge-branch` — orphan branch to write to (default `badges`).
+
+Then reference a badge in the README (substitute owner/repo and the file the
+writer produced):
+
+```markdown
+![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage-csharp.json)
+```
+
 ## Selecting runners
 
 By default the runner is chosen from the built repo's **visibility**: public

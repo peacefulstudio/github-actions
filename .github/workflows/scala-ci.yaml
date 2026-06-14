@@ -5,6 +5,18 @@ name: Scala CI
 
 on:
   workflow_call:
+    outputs:
+      coverage:
+        description: >-
+          Integer line-coverage percentage produced by the coverage shard,
+          or an empty string when no shard set `coverage: true`. Suitable to
+          feed into the `update-badges` reusable workflow's `coverage-data`.
+        value: ${{ jobs.coverage-output.outputs.coverage }}
+      matrix-status:
+        description: >-
+          JSON array of per-shard build results
+          `[{ "name", "os", "arch", "passed" }]`, one entry per matrix shard.
+        value: ${{ jobs.matrix-output.outputs.matrix-status }}
     inputs:
       working-directory:
         description: >-
@@ -94,6 +106,16 @@ on:
         required: false
         type: string
         default: 'scala-coverage'
+      artifact-prefix:
+        description: >-
+          Prefix applied to per-run artifact names (coverage-percent,
+          ci-result-<shard>) to namespace them by language. Set a distinct
+          value per language when multiple CI workflows (e.g. csharp-ci and
+          scala-ci) run as sibling jobs in the same caller run, so their
+          run-level artifacts don't collide.
+        required: false
+        type: string
+        default: 'scala'
       coverage-title:
         description: >-
           Heading prepended to the rendered coverage report so a reader
@@ -210,6 +232,33 @@ jobs:
           mkdir -p coverage/merged
           cp "$COBERTURA_PATH" coverage/merged/Cobertura.xml
 
+      - name: Checkout CI helpers
+        if: ${{ matrix.coverage }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+
+      - name: Extract coverage percentage
+        if: ${{ matrix.coverage }}
+        working-directory: ${{ github.workspace }}
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        run: |
+          set -euo pipefail
+          mkdir -p coverage
+          .github-actions-helpers/scripts/extract_coverage.py "$WORKING_DIRECTORY/coverage/merged/Cobertura.xml" > coverage/coverage-percent.txt
+
+      - name: Upload coverage value
+        if: ${{ matrix.coverage }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}-coverage-percent
+          path: coverage/coverage-percent.txt
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Code Coverage Summary Report
         if: ${{ matrix.coverage }}
         uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
@@ -219,14 +268,6 @@ jobs:
           format: 'markdown'
           hide_complexity: true
           output: 'both'
-
-      - name: Checkout CI helpers
-        if: ${{ matrix.coverage }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: peacefulstudio/github-actions
-          ref: ${{ job.workflow_sha }}
-          path: .github-actions-helpers
 
       - name: Sort coverage table alphabetically
         if: ${{ matrix.coverage }}
@@ -272,3 +313,81 @@ jobs:
           name: ${{ inputs.coverage-artifact-name }}
           path: ${{ inputs.working-directory }}/${{ inputs.cobertura-path }}
           retention-days: 14
+
+      - name: Record shard result
+        if: ${{ !cancelled() }}
+        working-directory: ${{ github.workspace }}
+        env:
+          SHARD_NAME: ${{ matrix.name }}
+          SHARD_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          mkdir -p ci-result
+          printf '%s %s\n' "$SHARD_NAME" "$SHARD_STATUS" > "ci-result/${SHARD_NAME}.txt"
+
+      - name: Upload shard result
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}-ci-result-${{ matrix.name }}
+          path: ci-result/${{ matrix.name }}.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  coverage-output:
+    name: coverage-output
+    needs: build-and-test
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      coverage: ${{ steps.read.outputs.coverage }}
+    steps:
+      - name: Download coverage value
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}-coverage-percent
+          path: coverage
+
+      - name: Read coverage value
+        id: read
+        run: |
+          set -euo pipefail
+          coverage=""
+          if [ -f coverage/coverage-percent.txt ]; then
+            coverage=$(tr -d '[:space:]' < coverage/coverage-percent.txt)
+          fi
+          echo "coverage=$coverage" >> "$GITHUB_OUTPUT"
+
+  matrix-output:
+    name: matrix-output
+    needs: build-and-test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix-status: ${{ steps.aggregate.outputs.matrix-status }}
+    steps:
+      - name: Checkout CI helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+
+      - name: Download shard results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: ${{ inputs.artifact-prefix }}-ci-result-*
+          path: ci-results
+          merge-multiple: true
+
+      - name: Aggregate shard results
+        id: aggregate
+        run: |
+          set -euo pipefail
+          status="$(.github-actions-helpers/scripts/aggregate_matrix_status.py ci-results)"
+          echo "matrix-status=$status" >> "$GITHUB_OUTPUT"
