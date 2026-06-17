@@ -222,8 +222,9 @@ jobs:
           MATRIX_MODE: ${{ inputs.matrix-mode != '' && inputs.matrix-mode || vars.CI_MATRIX_MODE }}
         run: |
           set -euo pipefail
+          mode=$(printf '%s' "$MATRIX_MODE" | tr '[:upper:]' '[:lower:]')
           visibility=""
-          if [ "$MATRIX_MODE" != "cheap" ] && [ -z "$BUILD_MATRIX" ] && [ -z "$OS_LIST" ]; then
+          if [ "$mode" = "cheap" ] || { [ -z "$BUILD_MATRIX" ] && [ -z "$OS_LIST" ]; }; then
             visibility=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.visibility')
             if [ -z "$visibility" ]; then
               echo "::error::could not determine repository visibility (empty result from gh api)" >&2

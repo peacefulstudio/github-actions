@@ -149,18 +149,32 @@ check_rc "unexpected visibility exit 1" 1 "$rc"
 check_contains "unexpected visibility annotated" "::error::unexpected repo visibility 'bogus'" "$err"
 
 hetzner_leg='[{"coverage":true,"name":"linux","runner":["self-hosted","hetzner"]}]'
+public_default='[{"coverage":true,"name":"ubuntu-latest","runner":"ubuntu-latest"},{"coverage":false,"name":"windows-latest","runner":"windows-latest"},{"coverage":false,"name":"macos-latest","runner":"macos-latest"}]'
 
-run '[{"name":"a","runner":"ubuntu-latest","coverage":true}]' '["windows-latest"]' "public" "cheap"
+run '[{"name":"a","runner":"ubuntu-latest","coverage":true}]' '["windows-latest"]' "private" "cheap"
 check_rc "cheap overrides explicit build-matrix exit 0" 0 "$rc"
 check "cheap overrides explicit build-matrix" "$hetzner_leg" "$out"
+
+run "" "" "internal" "cheap"
+check_rc "cheap on internal repo exit 0" 0 "$rc"
+check "cheap on internal resolves hetzner leg" "$hetzner_leg" "$out"
 
 run "" "" "" "cheap"
 check_rc "cheap ignores empty visibility exit 0" 0 "$rc"
 check "cheap with no other source still resolves hetzner leg" "$hetzner_leg" "$out"
 
-run "" "" "public" "CHEAP"
+run "" "" "private" "CHEAP"
 check_rc "cheap is case-insensitive exit 0" 0 "$rc"
 check "cheap is case-insensitive" "$hetzner_leg" "$out"
+
+run "" "" "public" "cheap"
+check_rc "cheap ignored on public repo exit 0" 0 "$rc"
+check "cheap ignored on public falls back to public default" "$public_default" "$out"
+check_contains "cheap ignored on public warns" "::warning::matrix-mode=cheap ignored on public repo" "$err"
+
+run '[{"name":"a","runner":"ubuntu-latest","coverage":true}]' "" "public" "cheap"
+check_rc "cheap on public keeps explicit build-matrix exit 0" 0 "$rc"
+check "cheap on public keeps explicit build-matrix" '[{"coverage":true,"name":"a","runner":"ubuntu-latest"}]' "$out"
 
 run "" "" "public" "full"
 check_rc "full preserves visibility default exit 0" 0 "$rc"

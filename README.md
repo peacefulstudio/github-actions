@@ -539,10 +539,17 @@ refactor when CI runs constantly:
 
 - `cheap` — collapse the whole matrix to a single shard on the free
   self-hosted Hetzner pool (`["self-hosted", "hetzner"]`, coverage on),
-  ignoring `os-list` and `build-matrix`.
+  ignoring `os-list` and `build-matrix`. **Private/internal repositories
+  only** — see the security note below.
 - `full` — force the normal matrix (visibility default, `os-list`, or
   `build-matrix`).
 - *(empty, the default)* — defer to the org/repo variable `CI_MATRIX_MODE`.
+
+> **Security: `cheap` is ignored on public repositories.** Self-hosted
+> runners must never execute untrusted public- or fork-PR workloads, so on a
+> public repo `cheap` is dropped (with a warning) and the normal
+> GitHub-hosted matrix runs instead. Scope the `CI_MATRIX_MODE` org variable
+> to **Private repositories** to match this guarantee.
 
 Set `CI_MATRIX_MODE` as an org- or repo-level **Actions variable** (Settings →
 Secrets and variables → Actions → Variables) to flip every consumer at once:
@@ -560,9 +567,9 @@ the org variable is `cheap`:
 ```yaml
 jobs:
   csharp-ci:
-    uses: peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v1
+    uses: peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v2
     with:
-      matrix-mode: cheap
+      matrix-mode: full
 ```
 
 ## Pinning
