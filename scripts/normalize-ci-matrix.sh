@@ -13,12 +13,19 @@ private_default='[{"name":"linux","runner":["self-hosted","hetzner"],"coverage":
 
 case "$(printf '%s' "$matrix_mode" | tr '[:upper:]' '[:lower:]')" in
   cheap)
-    if [ "$visibility" = "public" ]; then
-      echo "::warning::matrix-mode=cheap ignored on public repo (self-hosted runners must not run public/fork workloads); using normal matrix" >&2
-    else
-      build_matrix="$private_default"
-      os_list=""
-    fi
+    case "$visibility" in
+      private|internal)
+        build_matrix="$private_default"
+        os_list=""
+        ;;
+      public)
+        echo "::warning::matrix-mode=cheap ignored on public repo (self-hosted runners must not run public/fork workloads); using normal matrix" >&2
+        ;;
+      *)
+        echo "::error::matrix-mode=cheap requires a known repo visibility (private or internal); got '$visibility' — refusing to route to self-hosted runners" >&2
+        exit 1
+        ;;
+    esac
     ;;
   ""|full) ;;
   *)

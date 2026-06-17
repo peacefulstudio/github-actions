@@ -160,8 +160,8 @@ check_rc "cheap on internal repo exit 0" 0 "$rc"
 check "cheap on internal resolves hetzner leg" "$hetzner_leg" "$out"
 
 run "" "" "" "cheap"
-check_rc "cheap ignores empty visibility exit 0" 0 "$rc"
-check "cheap with no other source still resolves hetzner leg" "$hetzner_leg" "$out"
+check_rc "cheap with unknown visibility fails closed exit 1" 1 "$rc"
+check_contains "cheap with unknown visibility refuses self-hosted" "::error::matrix-mode=cheap requires a known repo visibility" "$err"
 
 run "" "" "private" "CHEAP"
 check_rc "cheap is case-insensitive exit 0" 0 "$rc"
@@ -171,6 +171,11 @@ run "" "" "public" "cheap"
 check_rc "cheap ignored on public repo exit 0" 0 "$rc"
 check "cheap ignored on public falls back to public default" "$public_default" "$out"
 check_contains "cheap ignored on public warns" "::warning::matrix-mode=cheap ignored on public repo" "$err"
+
+run "" "" "public" "CHEAP"
+check_rc "cheap uppercase still guarded on public exit 0" 0 "$rc"
+check "cheap uppercase still falls back to public default" "$public_default" "$out"
+check_contains "cheap uppercase still warns on public" "::warning::matrix-mode=cheap ignored on public repo" "$err"
 
 run '[{"name":"a","runner":"ubuntu-latest","coverage":true}]' "" "public" "cheap"
 check_rc "cheap on public keeps explicit build-matrix exit 0" 0 "$rc"
