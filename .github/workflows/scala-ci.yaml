@@ -70,6 +70,19 @@ on:
         required: false
         type: string
         default: ''
+      matrix-mode:
+        description: >-
+          Cost-routing override for the build-and-test matrix. `cheap`
+          collapses the matrix to a single FREE self-hosted Hetzner shard
+          (`["self-hosted","hetzner"]`, coverage on), ignoring `os-list` and
+          `build-matrix` — use it to route paid GitHub-hosted legs onto idle
+          self-hosted runners. `full` forces the normal matrix (visibility
+          default, `os-list`, or `build-matrix`). Empty (the default) defers
+          to the org/repo variable `CI_MATRIX_MODE`. Precedence: this input
+          over `CI_MATRIX_MODE` over the normal matrix.
+        required: false
+        type: string
+        default: ''
       cobertura-path:
         description: >-
           Path (relative to `working-directory`) of the Cobertura XML
@@ -164,17 +177,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUILD_MATRIX: ${{ inputs.build-matrix }}
           OS_LIST: ${{ inputs.os-list }}
+          MATRIX_MODE: ${{ inputs.matrix-mode != '' && inputs.matrix-mode || vars.CI_MATRIX_MODE }}
         run: |
           set -euo pipefail
           visibility=""
-          if [ -z "$BUILD_MATRIX" ] && [ -z "$OS_LIST" ]; then
+          if [ "$MATRIX_MODE" != "cheap" ] && [ -z "$BUILD_MATRIX" ] && [ -z "$OS_LIST" ]; then
             visibility=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.visibility')
             if [ -z "$visibility" ]; then
               echo "::error::could not determine repository visibility (empty result from gh api)" >&2
               exit 1
             fi
           fi
-          matrix=$(.github-actions-helpers/scripts/normalize-ci-matrix.sh "$BUILD_MATRIX" "$OS_LIST" "$visibility")
+          matrix=$(.github-actions-helpers/scripts/normalize-ci-matrix.sh "$BUILD_MATRIX" "$OS_LIST" "$visibility" "$MATRIX_MODE")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build-and-test:

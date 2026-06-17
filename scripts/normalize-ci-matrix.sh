@@ -6,9 +6,23 @@ set -euo pipefail
 build_matrix="${1:-}"
 os_list="${2:-}"
 visibility="${3:-}"
+matrix_mode="${4:-}"
 
 public_default='[{"name":"ubuntu-latest","runner":"ubuntu-latest","coverage":true},{"name":"windows-latest","runner":"windows-latest","coverage":false},{"name":"macos-latest","runner":"macos-latest","coverage":false}]'
 private_default='[{"name":"linux","runner":["self-hosted","hetzner"],"coverage":true}]'
+
+case "$(printf '%s' "$matrix_mode" | tr '[:upper:]' '[:lower:]')" in
+  cheap)
+    build_matrix="$private_default"
+    os_list=""
+    visibility=""
+    ;;
+  ""|full) ;;
+  *)
+    echo "::error::unexpected matrix-mode '$matrix_mode' (expected cheap, full, or empty)" >&2
+    exit 1
+    ;;
+esac
 
 transform() {
   local program="$1" input="$2" what="$3"

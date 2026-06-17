@@ -135,6 +135,7 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 | `working-directory`           | `.`                      | Path of the .NET workspace.                                                                  |
 | `os-list`                     | *(by visibility)*        | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. Empty + empty build-matrix → matrix by repo visibility (public → ubuntu/windows/macos; private/internal → Hetzner). |
 | `build-matrix`                | *(empty)*                | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners). |
+| `matrix-mode`                 | *(empty → `CI_MATRIX_MODE`)* | `cheap` collapses the matrix to a single free self-hosted Hetzner shard, overriding `os-list` / `build-matrix`; `full` forces the normal matrix; empty defers to the org/repo variable `CI_MATRIX_MODE`. See [Cheap matrix mode](#cheap-matrix-mode). |
 | `test-project`                | *(empty)*                | Specific test project / solution path; empty runs the workspace default `.sln` / `.slnx`.    |
 | `test-filter`                 | *(empty)*                | Forwarded to `dotnet test --filter`.                                                         |
 | `coverage-pr-comment-header`  | `csharp-coverage`        | Sticky-comment header (make unique per workspace if a repo calls this workflow more than once). |
@@ -247,6 +248,7 @@ coverage — use `build-matrix` instead (see
 | `java-distribution`           | `temurin`                                            | Passed to `actions/setup-java`.                                                                                                        |
 | `os-list`                     | *(by visibility)*                                    | JSON array of runner labels for the build-and-test matrix. Ignored when `build-matrix` is set. Empty + empty build-matrix → matrix by repo visibility (public → ubuntu/windows/macos; private/internal → Hetzner).                   |
 | `build-matrix`                | *(empty)*                                            | JSON array of `{ name, runner, coverage }` shards. Overrides `os-list`. See [Selecting runners](#selecting-runners).                   |
+| `matrix-mode`                 | *(empty → `CI_MATRIX_MODE`)*                         | `cheap` collapses the matrix to a single free self-hosted Hetzner shard, overriding `os-list` / `build-matrix`; `full` forces the normal matrix; empty defers to the org/repo variable `CI_MATRIX_MODE`. See [Cheap matrix mode](#cheap-matrix-mode). |
 | `cobertura-path`              | `target/scala-2.13/coverage-report/cobertura.xml`    | Path (relative to `working-directory`) of the Cobertura XML emitted by `sbt coverageReport`. Override for non-2.13 Scala majors.       |
 | `coverage-pr-comment-header`  | `scala-coverage`                                     | Hidden HTML-comment dedup key for the sticky PR comment. Make unique per language / per repo if multiple coverage comments coexist.    |
 | `coverage-artifact-name`      | `scala-coverage`                                     | Name of the uploaded Cobertura artifact. Must not collide with other coverage artifacts uploaded by sibling jobs in the same run.      |
@@ -528,6 +530,40 @@ jobs:
 `build-matrix` fully replaces `os-list` when set. Omit it (or leave it
 empty) to keep the `os-list` behaviour: each label becomes a shard, and the
 `ubuntu-latest` shard — if present — carries coverage.
+
+### Cheap matrix mode
+
+`csharp-ci` and `scala-ci` accept a `matrix-mode` input that routes paid
+GitHub-hosted matrix legs onto idle free self-hosted runners — handy during a
+refactor when CI runs constantly:
+
+- `cheap` — collapse the whole matrix to a single shard on the free
+  self-hosted Hetzner pool (`["self-hosted", "hetzner"]`, coverage on),
+  ignoring `os-list` and `build-matrix`.
+- `full` — force the normal matrix (visibility default, `os-list`, or
+  `build-matrix`).
+- *(empty, the default)* — defer to the org/repo variable `CI_MATRIX_MODE`.
+
+Set `CI_MATRIX_MODE` as an org- or repo-level **Actions variable** (Settings →
+Secrets and variables → Actions → Variables) to flip every consumer at once:
+
+```
+CI_MATRIX_MODE = cheap   # all callers collapse to the Hetzner leg
+CI_MATRIX_MODE = full    # all callers run the normal matrix
+# unset                  # callers run the normal matrix
+```
+
+Precedence is **input `matrix-mode` > variable `CI_MATRIX_MODE` > normal
+matrix**, so a single caller can opt out with `matrix-mode: full` even while
+the org variable is `cheap`:
+
+```yaml
+jobs:
+  csharp-ci:
+    uses: peacefulstudio/github-actions/.github/workflows/csharp-ci.yaml@v1
+    with:
+      matrix-mode: cheap
+```
 
 ## Pinning
 
