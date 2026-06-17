@@ -6,9 +6,33 @@ set -euo pipefail
 build_matrix="${1:-}"
 os_list="${2:-}"
 visibility="${3:-}"
+matrix_mode="${4:-}"
 
 public_default='[{"name":"ubuntu-latest","runner":"ubuntu-latest","coverage":true},{"name":"windows-latest","runner":"windows-latest","coverage":false},{"name":"macos-latest","runner":"macos-latest","coverage":false}]'
 private_default='[{"name":"linux","runner":["self-hosted","hetzner"],"coverage":true}]'
+
+case "$(printf '%s' "$matrix_mode" | tr '[:upper:]' '[:lower:]')" in
+  cheap)
+    case "$visibility" in
+      private|internal)
+        build_matrix="$private_default"
+        os_list=""
+        ;;
+      public)
+        echo "::warning::matrix-mode=cheap ignored on public repo (self-hosted runners must not run public/fork workloads); using normal matrix" >&2
+        ;;
+      *)
+        echo "::error::matrix-mode=cheap requires a known repo visibility (private or internal); got '$visibility' — refusing to route to self-hosted runners" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  ""|full) ;;
+  *)
+    echo "::error::unexpected matrix-mode '$matrix_mode' (expected cheap, full, or empty)" >&2
+    exit 1
+    ;;
+esac
 
 transform() {
   local program="$1" input="$2" what="$3"
