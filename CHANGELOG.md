@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-18
+
 ### Added
 
 - Add a `matrix-mode` input to `csharp-ci.yaml` and `scala-ci.yaml` plus a new org/repo Actions variable `CI_MATRIX_MODE` for cheap CI matrix routing: on private/internal repos `cheap` collapses the build/test matrix to a single free self-hosted Hetzner shard (`["self-hosted","hetzner"]`, coverage on), overriding any `os-list` / `build-matrix`; `full` forces the normal matrix; empty defers to `CI_MATRIX_MODE`. Precedence is input > variable > normal matrix, so the org variable can flip every consumer onto idle self-hosted runners while a single caller opts out with `matrix-mode: full`. For safety, `cheap` is ignored (with a warning) on public repositories, since self-hosted runners must not run untrusted public/fork-PR workloads. (#27)
@@ -99,7 +101,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/peacefulstudio/github-actions/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/peacefulstudio/github-actions/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/peacefulstudio/github-actions/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/peacefulstudio/github-actions/compare/v1.5.0...v2.0.0
 [1.5.0]: https://github.com/peacefulstudio/github-actions/compare/v1.4.0...v1.5.0
