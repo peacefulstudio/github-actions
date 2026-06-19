@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-06-19
+
 ### Fixed
 
 - Fix `csharp-ci.yaml` failing the `Upload shard result` step for callers that pass a non-root `working-directory` (e.g. `working-directory: csharp`). The `Record shard result` step inherited the job's `defaults.run.working-directory` and wrote `ci-result/<name>.txt` under that subdirectory, but `actions/upload-artifact` ignores `defaults.run.working-directory` and resolves its `path:` relative to the repo root, so the upload failed with `No files were found with the provided path: ci-result/<name>.txt` (`if-no-files-found: error`). The `Record shard result` step is now pinned to `working-directory: ${{ github.workspace }}` so it writes at the repo root, matching where `upload-artifact` reads — mirroring how the adjacent coverage steps are already pinned. Reported by `peacefulstudio/canton-localnet-internal`. (#28)
@@ -105,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/peacefulstudio/github-actions/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/peacefulstudio/github-actions/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/peacefulstudio/github-actions/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/peacefulstudio/github-actions/compare/v2.0.0...v2.1.0
