@@ -399,6 +399,7 @@ jobs:
 
       - name: Record shard result
         if: ${{ !cancelled() }}
+        working-directory: ${{ github.workspace }}
         env:
           SHARD_NAME: ${{ matrix.name }}
           SHARD_STATUS: ${{ job.status }}
