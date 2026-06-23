@@ -208,10 +208,15 @@ jobs:
             echo "::error::CodeCoverageSummary did not produce code-coverage-results.md"
             exit 1
           fi
-          # Workaround: CodeCoverageSummary runs inside a Docker container
-          # that writes code-coverage-results.md as root, so chown it back
-          # before editing.
-          sudo chown "$(id -un)" code-coverage-results.md
+          # Workaround: irongut/CodeCoverageSummary runs inside a Docker
+          # container that may write code-coverage-results.md as root. Self-hosted
+          # runners lack passwordless sudo, so take ownership without sudo by
+          # replacing the file with a runner-owned copy when it is not already
+          # writable (a same-directory rename only needs workspace dir perms).
+          if [ ! -w code-coverage-results.md ]; then
+            cp code-coverage-results.md code-coverage-results.md.owned
+            mv -f code-coverage-results.md.owned code-coverage-results.md
+          fi
           go install github.com/fzipp/gocyclo/cmd/gocyclo@v0.6.0
           GOCYCLO="$(go env GOPATH)/bin/gocyclo"
 
