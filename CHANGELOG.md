@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `go-ci.yaml` failing the `Augment coverage report with cyclomatic complexity` step on self-hosted runners. The step ran `sudo chown "$(id -un)" code-coverage-results.md` to take back a file that `irongut/CodeCoverageSummary` (a Docker action) writes as root, but self-hosted runners (e.g. the Hetzner pool) lack passwordless sudo, so the step died with `sudo: a password is required` — breaking every Go consumer's `build-and-test` job once it compiled far enough to reach coverage. Ownership is now taken without sudo: when the report is not writable it is replaced with a runner-owned copy via a same-directory `cp` + `mv -f`, which needs only workspace-directory permissions and is a no-op on GitHub-hosted runners where the file is already writable. Reported by `peacefulstudio/terraform-provider-canton-internal`.
+
 ## [2.3.1] - 2026-06-19
 
 ### Fixed
