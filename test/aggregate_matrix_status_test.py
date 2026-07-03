@@ -40,6 +40,19 @@ class AggregateMatrixStatusTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(aggregate_matrix_status.aggregate(directory), '[]')
 
+    def test_unknown_status_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self._write(directory, 'ubuntu-amd64', 'cancelled')
+            with self.assertRaises(ValueError):
+                aggregate_matrix_status.aggregate(directory)
+
+    def test_malformed_marker_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with open(os.path.join(directory, 'ubuntu-amd64.txt'), 'w') as handle:
+                handle.write('ubuntu-amd64\n')
+            with self.assertRaises(ValueError):
+                aggregate_matrix_status.aggregate(directory)
+
 
 if __name__ == '__main__':
     unittest.main()
