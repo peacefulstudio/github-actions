@@ -283,7 +283,7 @@ jobs:
           DOTNET_COVERAGE_VERSION: ${{ steps.dotnet-coverage.outputs.version }}
         run: |
           set -euo pipefail
-          dotnet tool update -g dotnet-coverage --version "$DOTNET_COVERAGE_VERSION"
+          "$GITHUB_WORKSPACE/.github-actions-helpers/scripts/install-dotnet-coverage.sh" "$DOTNET_COVERAGE_VERSION"
 
       - name: Restore
         env:

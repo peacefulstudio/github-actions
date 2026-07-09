@@ -78,6 +78,7 @@ jobs:
           set -euo pipefail
           bash test/push-nuget_test.sh
           bash test/normalize-ci-matrix_test.sh
+          bash test/install-dotnet-coverage_test.sh
 
       - name: Run python tests
         run: python3 -m unittest discover -s test -p '*_test.py'
