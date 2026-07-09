@@ -11,3 +11,4 @@ docs/*
 !docs/public
 
 /test/_stub_push.sh
+/test/_stub_dotnet.sh
