@@ -142,18 +142,25 @@ on:
         default: 'C# coverage'
       tests-glob:
         description: >-
-          Glob (relative to working-directory) used to locate the per-project
-          `*.cobertura.xml` files emitted by MTP's coverage extension. The
-          matching files are union-merged into a single report
-          (`coverage/merged.cobertura.xml`) by `dotnet-coverage merge`
-          before irongut/CodeCoverageSummary summarizes it. The default
-          narrows to `bin/Release/net*/` so that stale cobertura files
+          Glob(s) (relative to working-directory) used to locate the
+          per-project `*.cobertura.xml` files emitted by MTP's coverage
+          extension. The value is word-split into multiple space-separated
+          globs, and the matching files are union-merged into a single
+          report (`coverage/merged.cobertura.xml`) by `dotnet-coverage merge`
+          before irongut/CodeCoverageSummary summarizes it. The first default
+          glob narrows to `bin/Release/net*/` so that stale cobertura files
           left over in source-controlled or scratch directories do not get
-          merged. Adjust if your tests live outside a top-level `tests/`
-          directory or target a non-Release configuration.
+          merged. The second default glob covers the relocated layout:
+          CodeCoverage 18.9.0 together with .NET SDK 10.0.3xx solution-level
+          `dotnet test` resolves the relative `--coverage-output` against the
+          run-level `<working-directory>/TestResults/`; with an older package
+          line or an older SDK feature band (e.g. 10.0.1xx) the per-project
+          `bin/Release/<tfm>/TestResults/` location still applies. Adjust if
+          your tests live outside a top-level `tests/` directory or target a
+          non-Release configuration.
         required: false
         type: string
-        default: 'tests/**/bin/Release/net*/**/*.cobertura.xml'
+        default: 'tests/**/bin/Release/net*/**/*.cobertura.xml TestResults/**/*.cobertura.xml'
       pack:
         description: >-
           Whether to run `dotnet pack` and upload the resulting .nupkg as a
