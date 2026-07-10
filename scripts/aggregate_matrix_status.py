@@ -7,6 +7,8 @@ import os
 import sys
 
 PASSING_STATUS = 'success'
+FAILING_STATUS = 'failure'
+KNOWN_STATUSES = (PASSING_STATUS, FAILING_STATUS)
 
 
 def split_os_arch(name):
@@ -18,6 +20,10 @@ def read_marker(path):
     with open(path) as handle:
         text = handle.read().strip()
     name, _, status = text.partition(' ')
+    if not name or not status:
+        raise ValueError(f'malformed matrix marker: {path}')
+    if status not in KNOWN_STATUSES:
+        raise ValueError(f'unknown matrix status in {path}: {status}')
     return name, status
 
 

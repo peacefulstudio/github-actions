@@ -7,6 +7,8 @@ import sys
 
 GITHUB_PASSING_GREEN = '#28a745'
 GITHUB_FAILING_RED = '#d73a49'
+PASSING_TOKENS = ('true', 'success', 'passing', '1')
+FAILING_TOKENS = ('false', 'failure', 'failing', '0')
 
 NAMED_LOGO_BY_OS = {
     'ubuntu': 'ubuntu',
@@ -35,15 +37,24 @@ def badge_json(os_name, arch, passed):
 
 
 def parse_passed(token):
-    return token.strip().lower() in ('true', 'success', 'passing', '1')
+    normalized = token.strip().lower()
+    if normalized in PASSING_TOKENS:
+        return True
+    if normalized in FAILING_TOKENS:
+        return False
+    raise ValueError(f'unknown matrix status: {token}')
 
 
 def main(argv):
     if len(argv) != 4:
         print('error: usage: matrix_badge_json.py <os> <arch> <passed:true|false>', file=sys.stderr)
         return 2
-    print(badge_json(argv[1], argv[2], parse_passed(argv[3])))
-    return 0
+    try:
+        print(badge_json(argv[1], argv[2], parse_passed(argv[3])))
+        return 0
+    except ValueError as exc:
+        print(f'error: {exc}', file=sys.stderr)
+        return 2
 
 
 if __name__ == '__main__':

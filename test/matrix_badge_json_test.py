@@ -39,6 +39,13 @@ class MatrixBadgeJsonTest(unittest.TestCase):
         result = json.loads(matrix_badge_json.badge_json('freebsd', 'amd64', True))
         self.assertEqual(result['namedLogo'], 'freebsd')
 
+    def test_parse_passed_rejects_unknown_status(self):
+        with self.assertRaises(ValueError):
+            matrix_badge_json.parse_passed('cancelled')
+
+    def test_main_returns_error_for_unknown_status(self):
+        self.assertEqual(matrix_badge_json.main(['matrix_badge_json.py', 'ubuntu', 'amd64', 'cancelled']), 2)
+
 
 if __name__ == '__main__':
     unittest.main()
