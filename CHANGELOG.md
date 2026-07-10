@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-07-10
+
+### Fixed
+
+- Fix the badge helper scripts silently coercing unrecognized status input into a plausible-but-wrong badge instead of erroring. `matrix_badge_json.py` treated anything outside its passing allowlist as failing, so a `cancelled` or typo'd status rendered a misleading red badge, and `aggregate_matrix_status.py` reported a malformed marker (missing status) as a failed shard. Both now reject input outside the known `success`/`failure` token sets and fail the badge job loud, with regression tests for the rejected cases. Workflows using the built-in `matrix-status` → `update-badges.yaml` flow only ever produce known tokens, so healthy consumers see no change. First outside contribution to this repo — thank you @maxi-maxima! (#30)
+
+- Fix `csharp-ci.yaml`'s `Merge per-project cobertura reports` step finding no coverage files for consumers that bump `Microsoft.Testing.Extensions.CodeCoverage` to 18.9.0 on .NET SDK 10.0.3xx. That combination makes solution-level `dotnet test` resolve the relative `--coverage-output` against the run-level `<working-directory>/TestResults/` instead of each project's `bin/Release/<tfm>/TestResults/`, so the default `tests-glob` matched nothing and failed the coverage shard. The default now carries a second glob (`TestResults/**/*.cobertura.xml`) — the merge step word-splits the input under `globstar nullglob`, so old-layout consumers see no change and callers passing an explicit `tests-glob` are unaffected. The README caller prerequisites document both layouts and lift the stale "do not bump `CodeCoverage` past 18.0.x" ceiling: with `xunit.v3.mtp-v2` shipped, 18.x lines through 18.9.x are supported, while the 19.x empty-output warning stays. First hit by `peacefulstudio/daml-codegen-csharp-internal`. (#32)
+
 ## [2.3.3] - 2026-07-09
 
 ### Fixed
@@ -119,7 +127,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.3.4...HEAD
+[2.3.4]: https://github.com/peacefulstudio/github-actions/compare/v2.3.3...v2.3.4
+[2.3.3]: https://github.com/peacefulstudio/github-actions/compare/v2.3.2...v2.3.3
+[2.3.2]: https://github.com/peacefulstudio/github-actions/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/peacefulstudio/github-actions/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/peacefulstudio/github-actions/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/peacefulstudio/github-actions/compare/v2.1.0...v2.2.0
