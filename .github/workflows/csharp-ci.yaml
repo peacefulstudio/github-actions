@@ -142,21 +142,16 @@ on:
         default: 'C# coverage'
       tests-glob:
         description: >-
-          Glob(s) (relative to working-directory) used to locate the
-          per-project `*.cobertura.xml` files emitted by MTP's coverage
-          extension. The value is word-split into multiple space-separated
-          globs, and the matching files are union-merged into a single
-          report (`coverage/merged.cobertura.xml`) by `dotnet-coverage merge`
-          before irongut/CodeCoverageSummary summarizes it. The first default
-          glob narrows to `bin/Release/net*/` so that stale cobertura files
-          left over in source-controlled or scratch directories do not get
-          merged. The second default glob covers the relocated layout:
-          CodeCoverage 18.9.0 together with .NET SDK 10.0.3xx solution-level
-          `dotnet test` resolves the relative `--coverage-output` against the
-          run-level `<working-directory>/TestResults/`; with an older package
-          line or an older SDK feature band (e.g. 10.0.1xx) the per-project
-          `bin/Release/<tfm>/TestResults/` location still applies. Adjust if
-          your tests live outside a top-level `tests/` directory or target a
+          Space-separated glob(s), relative to working-directory, used to
+          locate the `*.cobertura.xml` files emitted by MTP's coverage
+          extension. All matching files are union-merged into
+          `coverage/merged.cobertura.xml` by `dotnet-coverage merge` before
+          irongut/CodeCoverageSummary summarizes it. The defaults cover the
+          two places the toolchain writes coverage output — each test
+          project's `bin/Release/` tree and the run-level `TestResults/`
+          directory — while staying narrow enough to skip stale files in
+          source-controlled or scratch directories. Adjust if your tests
+          live outside a top-level `tests/` directory or target a
           non-Release configuration.
         required: false
         type: string
