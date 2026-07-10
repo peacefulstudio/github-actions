@@ -142,18 +142,20 @@ on:
         default: 'C# coverage'
       tests-glob:
         description: >-
-          Glob (relative to working-directory) used to locate the per-project
-          `*.cobertura.xml` files emitted by MTP's coverage extension. The
-          matching files are union-merged into a single report
-          (`coverage/merged.cobertura.xml`) by `dotnet-coverage merge`
-          before irongut/CodeCoverageSummary summarizes it. The default
-          narrows to `bin/Release/net*/` so that stale cobertura files
-          left over in source-controlled or scratch directories do not get
-          merged. Adjust if your tests live outside a top-level `tests/`
-          directory or target a non-Release configuration.
+          Space-separated glob(s), relative to working-directory, used to
+          locate the `*.cobertura.xml` files emitted by MTP's coverage
+          extension. All matching files are union-merged into
+          `coverage/merged.cobertura.xml` by `dotnet-coverage merge` before
+          irongut/CodeCoverageSummary summarizes it. The defaults cover the
+          two places the toolchain writes coverage output — each test
+          project's `bin/Release/` tree and the run-level `TestResults/`
+          directory — while staying narrow enough to skip stale files in
+          source-controlled or scratch directories. Adjust if your tests
+          live outside a top-level `tests/` directory or target a
+          non-Release configuration.
         required: false
         type: string
-        default: 'tests/**/bin/Release/net*/**/*.cobertura.xml'
+        default: 'tests/**/bin/Release/net*/**/*.cobertura.xml TestResults/**/*.cobertura.xml'
       pack:
         description: >-
           Whether to run `dotnet pack` and upload the resulting .nupkg as a

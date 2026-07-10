@@ -187,9 +187,11 @@ stay on a previous SHA / tag until you've migrated the items below.
     across files fails the coverage shard loud — like a missing
     `global.json`. The version must be a literal (e.g. `18.8.0`).
   See [`canton-ledger-api-csharp#79`](https://github.com/peacefulstudio/canton-ledger-api-csharp/pull/79)
-  for the MTP 1.x / 2.x compatibility rationale: do not bump
-  `CodeCoverage` past 18.0.x until `xunit.v3` ships an MTP 2.x build —
-  newer 19.x lines have produced empty Cobertura output in this pipeline.
+  for the MTP 1.x / 2.x compatibility rationale: the 18.0.x ceiling
+  applied until `xunit.v3` shipped its MTP 2.x package. With
+  `xunit.v3.mtp-v2` in place, 18.x lines through 18.9.x are supported —
+  but newer 19.x lines have produced empty Cobertura output in this
+  pipeline.
 
 - **`tests/Directory.Build.props`** (or equivalent) must enable MTP:
 
@@ -200,16 +202,27 @@ stay on a previous SHA / tag until you've migrated the items below.
   ```
 
   The exact arguments live in the caller — what matters is that MTP runs
-  in-process and emits `*.cobertura.xml` files somewhere under `tests/`.
+  in-process and emits `*.cobertura.xml` files. Their location depends on
+  the toolchain combination: CodeCoverage 18.9.0 together with .NET SDK
+  10.0.3xx relocates the relative `--coverage-output` file to
+  `<working-directory>/TestResults/` (the run-level results directory),
+  whereas with an older package line or SDK 10.0.1xx they land under each
+  test project's `tests/**/bin/Release/<tfm>/TestResults/`. The default
+  `tests-glob` matches both layouts.
 
-- **Multi-TFM test projects** must set a per-TFM Cobertura filename to
-  avoid silent overwrites between target frameworks:
+- **Multi-TFM test projects** must set a Cobertura filename that is unique
+  per project *and* per TFM to avoid silent overwrites — under the relocated
+  layout (CodeCoverage 18.9.0 + SDK 10.0.3xx) every project writes into the
+  shared `<working-directory>/TestResults/`, so a project-name prefix is
+  what keeps two projects from clobbering each other's files:
 
   ```xml
   <TestingPlatformCommandLineArguments>... --coverage-output $(MSBuildProjectName)_$(TargetFramework).cobertura.xml</TestingPlatformCommandLineArguments>
   ```
 
-  Single-TFM projects can omit this.
+  The `$(MSBuildProjectName)` prefix satisfies both. Single-TFM projects in
+  the per-project layout can omit this, but the project-name prefix is
+  still required to stay collision-free in the shared directory.
 
 - **`coverage.settings.xml`** at the repo root (or wherever
   `TestingPlatformCommandLineArguments` points), tuning the coverage
