@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `go-ci.yaml`'s `Augment coverage report with cyclomatic complexity` step staging per-function coverage output at the fixed path `/tmp/cov-func.txt`. On shared self-hosted runners (e.g. the Hetzner pool) `/tmp` outlives the job and is shared across runner instances, so a leftover file owned by a different runner user fails the step with `permission denied`, and two Go jobs landing on the same host can interleave writes and stamp the wrong per-function coverage into each other's `Attended` column. The staging file now lives under `$RUNNER_TEMP`, which is private to the runner instance and wiped between jobs; GitHub-hosted consumers see no change. Closes out the self-hosted-runner hardening of this step begun in 2.3.2's sudo removal. (#12)
+
 ## [2.3.4] - 2026-07-10
 
 ### Fixed
