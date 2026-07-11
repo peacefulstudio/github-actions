@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Harden `scripts/write-badges.sh` (the `update-badges.yaml` helper) against silent failures. `git fetch origin "$badge_branch" || true` previously swallowed every failure — auth, network, or a genuinely absent branch alike — then fell through to the orphan-rebuild path; a real fetch failure is now aborted loud, and only the benign "branch does not exist yet" case (detected up front with `git ls-remote --exit-code`) rebuilds the orphan branch. Malformed input now fails the badge job instead of writing a bogus badge file: a non-array `coverage-data`/`matrix-data`, a coverage entry missing `slug`/`label`, or a matrix entry missing `lang`/`os`/`arch`/`passed` (which would have written `ci-null-null-null.json`) is rejected with a `::error::` annotation. Added `test/write-badges_test.sh` pinning the `coverage-<slug>.json` / `ci-<lang>-<os>-<arch>.json` filename contract, the null-percent skip, and the new fail-loud paths, wired into the `build-and-test` self-test job. Healthy consumers on the built-in `matrix-status` → `update-badges.yaml` flow see no change. (#24)
+
 ## [2.3.4] - 2026-07-10
 
 ### Fixed
