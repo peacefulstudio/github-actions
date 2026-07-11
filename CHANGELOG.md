@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Publish the `build-matrix` shard results of `csharp-ci.yaml` and `scala-ci.yaml` as a sticky PR comment (`shard | result | duration` table, each shard linking to its job). A new `matrix-comment` job (`needs: build-and-test`, `if: always()`) queries the run's per-shard job outcomes via `gh api .../actions/runs/<run-id>/jobs` — so the table renders even when a shard fails — and upserts it via `marocchino/sticky-pull-request-comment` under a `<artifact-prefix>-build-matrix` header, distinct from the coverage sticky comment. It no-ops when the caller passes no `build-matrix`, on non-`pull_request` events, and for dependabot. Coverage comments are unaffected. (#21)
+- Publish the `build-matrix` shard results of `csharp-ci.yaml` and `scala-ci.yaml` as a sticky PR comment (`shard | result | duration` table, each shard linking to its job). A new `matrix-comment` job (`needs: build-and-test`, `if: !cancelled()`) queries the run's per-shard job outcomes via `gh api .../actions/runs/<run-id>/jobs` — so the table renders even when a shard fails — and upserts it via `marocchino/sticky-pull-request-comment` under a `<artifact-prefix>-build-matrix` header, distinct from the coverage sticky comment. It no-ops when the caller passes no `build-matrix`, on non-`pull_request` events, and for dependabot. Coverage comments are unaffected. (#21)
+
+## [2.3.4] - 2026-07-10
 
 ### Fixed
 

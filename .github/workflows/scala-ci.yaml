@@ -410,7 +410,7 @@ jobs:
   matrix-comment:
     name: matrix-comment (${{ inputs.artifact-prefix }})
     needs: build-and-test
-    if: ${{ always() && inputs.build-matrix != '' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+    if: ${{ !cancelled() && inputs.build-matrix != '' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
