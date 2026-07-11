@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `csharp-ci.yaml` and `scala-ci.yaml` silently emitting an empty `coverage` output when the coverage-percent artifact download failed. The `coverage-output` job downloaded the artifact with `continue-on-error: true` and defaulted to empty when the file was absent, conflating "no shard set `coverage: true`" (empty is correct) with "the coverage shard uploaded the artifact but the download failed" (throttling, retention, infra) — the latter fed a blank or stale coverage badge from an otherwise green run. The job now derives whether a coverage shard was configured from the normalized matrix: when one was, the artifact download must succeed and yield a non-empty value or the job fails loud; when none was, the download step is skipped and the empty output stays intentional. Consumers whose coverage shard uploads normally see no change. (#25)
+
 ## [2.3.4] - 2026-07-10
 
 ### Fixed
