@@ -412,3 +412,36 @@ jobs:
           set -euo pipefail
           status="$(.github-actions-helpers/scripts/aggregate_matrix_status.py ci-results)"
           echo "matrix-status=$status" >> "$GITHUB_OUTPUT"
+
+  matrix-comment:
+    name: matrix-comment (${{ inputs.artifact-prefix }})
+    needs: build-and-test
+    if: ${{ !cancelled() && inputs.build-matrix != '' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout CI helpers
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: peacefulstudio/github-actions
+          ref: ${{ job.workflow_sha }}
+          path: .github-actions-helpers
+      - name: Render build-matrix table
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELF_JOB_NAME: matrix-comment (${{ inputs.artifact-prefix }})
+          MATRIX_TITLE: 'Scala build matrix'
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" \
+            | .github-actions-helpers/scripts/render_matrix_comment.py "$SELF_JOB_NAME" "$MATRIX_TITLE" \
+            > build-matrix-results.md
+      - name: Add build-matrix PR comment
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        with:
+          recreate: true
+          header: ${{ inputs.artifact-prefix }}-build-matrix
+          path: build-matrix-results.md
