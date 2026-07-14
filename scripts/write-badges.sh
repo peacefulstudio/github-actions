@@ -9,10 +9,35 @@ badge_branch="${BADGE_BRANCH:?BADGE_BRANCH is required}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+require_json_array() {
+  local source_name="$1" value="$2"
+  if ! jq -e 'type == "array"' <<<"$value" >/dev/null 2>&1; then
+    echo "::error::$source_name is not a JSON array: $value" >&2
+    exit 1
+  fi
+}
+
+require_field() {
+  local source_name="$1" entry="$2" field_name="$3" field_value="$4"
+  if [ -z "$field_value" ] || [ "$field_value" = "null" ]; then
+    echo "::error::$source_name entry is missing '$field_name': $entry" >&2
+    exit 1
+  fi
+}
+
+require_json_array COVERAGE_DATA "$coverage_data"
+require_json_array MATRIX_DATA "$matrix_data"
+
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-git fetch origin "$badge_branch" || true
+badge_ref="refs/heads/$badge_branch"
+ls_remote_rc=0
+git ls-remote --exit-code origin "$badge_ref" >/dev/null || ls_remote_rc=$?
+if [ "$ls_remote_rc" -ne 0 ] && [ "$ls_remote_rc" -ne 2 ]; then
+  echo "::error::git ls-remote for $badge_ref failed with exit code $ls_remote_rc" >&2
+  exit "$ls_remote_rc"
+fi
 
 worktree_dir="$(mktemp -d)"
 cleanup() {
@@ -21,12 +46,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if git rev-parse --verify "origin/$badge_branch" >/dev/null 2>&1; then
+if [ "$ls_remote_rc" -eq 0 ]; then
+  git fetch origin "+$badge_ref:refs/remotes/origin/$badge_branch"
   git worktree add "$worktree_dir" "origin/$badge_branch"
   git -C "$worktree_dir" checkout -B "$badge_branch"
 else
   git worktree add --orphan -b "$badge_branch" "$worktree_dir"
-  git -C "$worktree_dir" rm -rf . 2>/dev/null || true
 fi
 
 while IFS= read -r entry; do
@@ -34,6 +59,8 @@ while IFS= read -r entry; do
   slug="$(jq -r '.slug' <<<"$entry")"
   label="$(jq -r '.label' <<<"$entry")"
   percent="$(jq -r '.percent' <<<"$entry")"
+  require_field coverage-data "$entry" slug "$slug"
+  require_field coverage-data "$entry" label "$label"
   if [ -z "$percent" ] || [ "$percent" = "null" ]; then
     continue
   fi
@@ -46,6 +73,10 @@ while IFS= read -r entry; do
   os_name="$(jq -r '.os' <<<"$entry")"
   arch="$(jq -r '.arch' <<<"$entry")"
   passed="$(jq -r '.passed' <<<"$entry")"
+  require_field matrix-data "$entry" lang "$lang"
+  require_field matrix-data "$entry" os "$os_name"
+  require_field matrix-data "$entry" arch "$arch"
+  require_field matrix-data "$entry" passed "$passed"
   python3 "$script_dir/matrix_badge_json.py" "$os_name" "$arch" "$passed" > "$worktree_dir/ci-$lang-$os_name-$arch.json"
 done < <(jq -c '.[]' <<<"$matrix_data")
 
