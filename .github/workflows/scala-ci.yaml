@@ -351,16 +351,18 @@ jobs:
 
   coverage-output:
     name: coverage-output
-    needs: build-and-test
+    needs: [normalize, build-and-test]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      COVERAGE_EXPECTED: ${{ contains(fromJSON(needs.normalize.outputs.matrix).*.coverage, true) }}
     outputs:
       coverage: ${{ steps.read.outputs.coverage }}
     steps:
       - name: Download coverage value
-        continue-on-error: true
+        if: ${{ env.COVERAGE_EXPECTED == 'true' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-percent
@@ -373,6 +375,10 @@ jobs:
           coverage=""
           if [ -f coverage/coverage-percent.txt ]; then
             coverage=$(tr -d '[:space:]' < coverage/coverage-percent.txt)
+          fi
+          if [ "$COVERAGE_EXPECTED" = "true" ] && [ -z "$coverage" ]; then
+            echo "::error::the coverage shard uploaded a coverage-percent artifact but no coverage value reached coverage-output — failing instead of emitting a blank coverage badge"
+            exit 1
           fi
           echo "coverage=$coverage" >> "$GITHUB_OUTPUT"
 
