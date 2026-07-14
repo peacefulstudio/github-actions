@@ -270,11 +270,12 @@ jobs:
             echo "::warning::Coverage report format changed — Summary Complexity not patched. Check CodeCoverageSummary version."
           fi
 
-          : > /tmp/cov-func.txt
+          COV_FUNC="$RUNNER_TEMP/cov-func.txt"
+          : > "$COV_FUNC"
           while IFS= read -r mod; do
             [ -z "$mod" ] && continue
             safe=$(echo "$mod" | tr '/' '_')
-            (cd "$mod" && go tool cover -func="$GITHUB_WORKSPACE/coverage/$safe.out") >> /tmp/cov-func.txt
+            (cd "$mod" && go tool cover -func="$GITHUB_WORKSPACE/coverage/$safe.out") >> "$COV_FUNC"
           done <<< "$MODULES"
 
           {
@@ -290,7 +291,7 @@ jobs:
                 echo "| ${complexity} | \`${func}\` | \`${location}\` | ? parse |"
                 continue
               fi
-              if pct=$(grep -F "${file_line}:" /tmp/cov-func.txt | head -1 | awk 'NF{print $NF}') && [ -n "${pct}" ]; then
+              if pct=$(grep -F "${file_line}:" "$COV_FUNC" | head -1 | awk 'NF{print $NF}') && [ -n "${pct}" ]; then
                 case "${pct}" in
                   0.0%) attended="✗ 0.0%" ;;
                   *)    attended="✓ ${pct}" ;;
