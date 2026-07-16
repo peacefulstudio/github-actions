@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-07-16
+
+### Removed
+
+- Revert 2.4.0's sticky build-matrix PR comment from `csharp-ci.yaml` and `scala-ci.yaml`. The `matrix-comment` job requests `actions: read`, and a called workflow cannot request a permission its caller's `permissions:` block does not grant — GitHub rejects the caller run at startup (`startup_failure`, before any job runs, on every event type; the job-level `if` guards cannot help because the check is static). Every caller with a restricted top-level `permissions:` block was unable to run CI at all from the moment the floating `v2` tag moved to 2.4.0. Callers that had granted `actions: read` lose only the comment; coverage comments and all other outputs are unchanged. The feature will return reading the existing per-shard `ci-results` artifacts instead of the jobs API, which needs no extra caller permissions. (#37)
+
 ## [2.4.0] - 2026-07-14
 
 ### Added
@@ -140,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.4.1...HEAD
+[2.4.1]: https://github.com/peacefulstudio/github-actions/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/peacefulstudio/github-actions/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/peacefulstudio/github-actions/compare/v2.3.3...v2.3.4
 [2.3.3]: https://github.com/peacefulstudio/github-actions/compare/v2.3.2...v2.3.3
