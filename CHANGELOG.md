@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `csharp-ci.yaml`'s `build-and-test` job losing MSBuild mid-build with `MSB4166` ("node terminated unexpectedly") when a caller lands on the shared `hetzner-3`/`hetzner-4` self-hosted pool. The two runners share one host and OS user; when one job finishes, its orphan-process cleanup kills lingering MSBuild "node" processes, including idle out-of-proc nodes a *different*, still-running job on the sibling runner had left attached to for node reuse — that job's build then dies mid-flight. The job now sets `MSBUILDDISABLENODEREUSE: '1'`, which makes MSBuild skip the node-reuse handshake entirely (`XMake.cs` `ProcessNodeReuseSwitch`, `CommunicationsUtilities.cs:657`, `NodeProviderOutOfProcBase.cs:265-307`), so no job ever registers a shared out-of-proc node a sibling's cleanup could kill. `scala-ci.yaml` invokes no `dotnet`/MSBuild and is unaffected. First hit by `peacefulstudio/daml-codegen-csharp-internal` (issue #1086, fixed for that repo's own inline jobs in #1312); this closes the same gap in the reusable workflow, which the caller's job `env:` can't reach under `workflow_call`. Consumers on GitHub-hosted runners see no change. (#0)
+
 ## [2.4.1] - 2026-08-30
 
 ### Fixed

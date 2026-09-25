@@ -248,6 +248,9 @@ jobs:
       contents: read
       packages: read
       pull-requests: write
+    # MSBuild node reuse: a sibling job's orphan-process cleanup on the shared hetzner-3/hetzner-4 host can kill this job's idle MSBuild node mid-build (peacefulstudio/daml-codegen-csharp-internal#1086)
+    env:
+      MSBUILDDISABLENODEREUSE: '1'
     defaults:
       run:
         shell: bash
