@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-09-29
+
 ### Added
 
-- `csharp-ci.yaml`'s coverage shard uploads the merged Cobertura report (`coverage/merged.cobertura.xml`, the file `dotnet-coverage merge` produces from every per-project report) as the run artifact `<artifact-prefix>-coverage-report` (default `csharp-coverage-report`), with `retention-days: 1`. A caller job that `needs` the `csharp-ci` job can download it with `actions/download-artifact` to run checks over the whole-solution coverage, such as asserting that every source module appears in it, without re-running the tests. The name shares the `artifact-prefix` namespace with `<prefix>-coverage-percent` and `<prefix>-ci-result-*` and matches neither, and it differs from `scala-ci.yaml`'s `coverage-artifact-name` (default `scala-coverage`, which already uploads its Cobertura file), so sibling csharp and scala jobs in one caller run do not collide. Purely additive: no input or output changes.
+- `csharp-ci.yaml`'s coverage shard uploads the merged Cobertura report (`coverage/merged.cobertura.xml`, the file `dotnet-coverage merge` produces from every per-project report) as the run artifact `<artifact-prefix>-coverage-report` (default `csharp-coverage-report`), with `retention-days: 1` and `overwrite: true` (so re-running failed jobs does not hit an artifact-name conflict). A caller job that `needs` the `csharp-ci` job can download it with `actions/download-artifact` to run checks over the whole-solution coverage, such as asserting that every source module appears in it, without re-running the tests. The name shares the `artifact-prefix` namespace with `<prefix>-coverage-percent` and `<prefix>-ci-result-*` and matches neither, and it differs from `scala-ci.yaml`'s `coverage-artifact-name` (default `scala-coverage`, which already uploads its Cobertura file), so sibling csharp and scala jobs in one caller run do not collide. Purely additive: no input or output changes.
 
 ## [2.5.0] - 2026-09-29
 
@@ -164,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/peacefulstudio/github-actions/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/peacefulstudio/github-actions/compare/v2.4.1...v2.5.0
 [2.4.1]: https://github.com/peacefulstudio/github-actions/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/peacefulstudio/github-actions/compare/v2.3.4...v2.4.0
