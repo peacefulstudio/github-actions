@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `csharp-ci.yaml`'s coverage shard crashing in `dotnet-coverage merge` (exit 134, `FileNotFoundException` for `Microsoft.CodeCoverage.Instrumentation`) when another job on the same self-hosted host installs a different `dotnet-coverage` version at the same moment. The `Install dotnet-coverage` step installed the tool globally (`dotnet tool install -g`), and every runner slot on a shared host (e.g. the four Hetzner slots) runs as the same Unix user, so they all shared one `~/.dotnet/tools`. Consumers pin different versions through `Microsoft.Testing.Extensions.CodeCoverage`, and the 2.3.x fix (#31) made each job uninstall and reinstall the global tool whenever its pin differed from what was there, pulling the binary out from under any other slot's `dotnet-coverage merge` that was running. `scripts/install-dotnet-coverage.sh` now installs the pinned version with `--tool-path` into `$RUNNER_TEMP/dotnet-coverage-<version>`, which is private to the job and wiped between jobs, and prepends that directory to `GITHUB_PATH`. It never touches the global tool, so no job can affect another job's copy, and whatever version an earlier job left globally no longer matters. The step fails loud if `RUNNER_TEMP` or `GITHUB_PATH` is unset. GitHub-hosted consumers see no change beyond the tool's install location.
+
 ## [2.4.1] - 2026-08-30
 
 ### Fixed

@@ -5,22 +5,9 @@ set -euo pipefail
 
 version="${1:?usage: install-dotnet-coverage.sh <version>}"
 dotnet_bin="${DOTNET_BIN:-dotnet}"
+job_tool_path="${RUNNER_TEMP:?RUNNER_TEMP must be set}/dotnet-coverage-${version}"
+github_path_file="${GITHUB_PATH:?GITHUB_PATH must be set}"
 
-installed="$("$dotnet_bin" tool list -g | awk '$1 == "dotnet-coverage" {print $2}')"
-
-if [ "$installed" = "$version" ]; then
-  echo "dotnet-coverage $version already installed"
-  exit 0
-fi
-
-if [ -n "$installed" ]; then
-  # `dotnet tool update` refuses to move to an older version, so a runner
-  # that already carries a newer dotnet-coverage than the caller's pin
-  # (shared self-hosted runners accumulate whatever the last caller
-  # installed) fails outright instead of matching the pin. Uninstalling
-  # first makes this idempotent in both directions.
-  echo "dotnet-coverage $installed installed, want $version — reinstalling"
-  "$dotnet_bin" tool uninstall -g dotnet-coverage
-fi
-
-"$dotnet_bin" tool install -g dotnet-coverage --version "$version"
+"$dotnet_bin" tool install dotnet-coverage --version "$version" --tool-path "$job_tool_path"
+echo "$job_tool_path" >> "$github_path_file"
+echo "dotnet-coverage $version installed to $job_tool_path"
