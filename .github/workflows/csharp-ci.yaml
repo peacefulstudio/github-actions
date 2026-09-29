@@ -366,6 +366,7 @@ jobs:
           path: coverage/merged.cobertura.xml
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
       - name: Extract coverage percentage
         if: ${{ matrix.coverage }}
