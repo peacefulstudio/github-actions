@@ -6,7 +6,9 @@
 Reads the concatenated JSON pages emitted by
 ``gh api --paginate repos/<repo>/actions/runs/<run-id>/jobs`` on stdin,
 anchors on the calling aggregator job's own display name to resolve the
-reusable-workflow name prefix, and prints a ``shard | result | duration``
+reusable-workflow name prefix (when several invocations share that display
+name, the optional runner name picks the one still in progress on this
+runner), and prints a ``shard | result | duration``
 table covering the sibling ``build-and-test (<shard>)`` jobs of the same
 workflow invocation.
 """
@@ -42,11 +44,16 @@ def parse_job_pages(text):
     return jobs
 
 
-def workflow_prefix(jobs, self_job_name):
+def is_running_on(job, runner_name):
+    return job.get('status') == 'in_progress' and job.get('runner_name') == runner_name
+
+
+def workflow_prefix(jobs, self_job_name, runner_name=None):
     matches = [
         job['name']
         for job in jobs
-        if job['name'] == self_job_name or job['name'].endswith(f' / {self_job_name}')
+        if (job['name'] == self_job_name or job['name'].endswith(f' / {self_job_name}'))
+        and (runner_name is None or is_running_on(job, runner_name))
     ]
     if not matches:
         raise ValueError(f'no job named {self_job_name!r} found in this run')
@@ -94,8 +101,8 @@ def format_duration(job):
     return f'{minutes}m {remainder:02d}s'
 
 
-def render(jobs, self_job_name, title):
-    prefix = workflow_prefix(jobs, self_job_name)
+def render(jobs, self_job_name, title, runner_name=None):
+    prefix = workflow_prefix(jobs, self_job_name, runner_name)
     shards = shard_jobs(jobs, prefix)
     if not shards:
         raise ValueError(
@@ -117,13 +124,14 @@ def render(jobs, self_job_name, title):
 
 
 def main(argv):
-    if len(argv) != 3:
+    if len(argv) not in (3, 4):
         print(
-            'error: usage: render_matrix_comment.py <self-job-name> <title>',
+            'error: usage: render_matrix_comment.py <self-job-name> <title> [<runner-name>]',
             file=sys.stderr,
         )
         return 2
-    print(render(parse_job_pages(sys.stdin.read()), argv[1], argv[2]), end='')
+    runner_name = argv[3] if len(argv) == 4 else None
+    print(render(parse_job_pages(sys.stdin.read()), argv[1], argv[2], runner_name), end='')
     return 0
 
 

@@ -19,6 +19,8 @@ def job(
     started='2026-07-10T12:00:00Z',
     completed='2026-07-10T12:03:42Z',
     url='https://github.test/run/1/job/1',
+    status='completed',
+    runner_name=None,
 ):
     return {
         'name': name,
@@ -26,6 +28,8 @@ def job(
         'started_at': started,
         'completed_at': completed,
         'html_url': url,
+        'status': status,
+        'runner_name': runner_name,
     }
 
 
@@ -92,6 +96,36 @@ class RenderMatrixCommentTest(unittest.TestCase):
         ]
         with self.assertRaises(ValueError):
             render_matrix_comment.render(jobs, SELF_JOB_NAME, TITLE)
+
+    def test_runner_name_disambiguates_identically_named_self_jobs(self):
+        jobs = [
+            job('csharp / build-and-test (linux-x64)', url='https://github.test/j/csharp'),
+            job('scala / build-and-test (linux-x64)', conclusion='failure', url='https://github.test/j/scala'),
+            job('csharp / coverage-output', conclusion=None, status='in_progress', runner_name='runner-a'),
+            job('scala / coverage-output', conclusion=None, status='in_progress', runner_name='runner-b'),
+        ]
+        rendered = render_matrix_comment.render(jobs, 'coverage-output', TITLE, 'runner-a')
+        self.assertIn('https://github.test/j/csharp', rendered)
+        self.assertNotIn('https://github.test/j/scala', rendered)
+
+    def test_runner_name_ignores_finished_jobs_of_the_same_runner(self):
+        jobs = [
+            job('csharp / build-and-test (linux-x64)', url='https://github.test/j/csharp'),
+            job('scala / build-and-test (linux-x64)', conclusion='failure', url='https://github.test/j/scala'),
+            job('scala / coverage-output', status='completed', runner_name='runner-a'),
+            job('csharp / coverage-output', conclusion=None, status='in_progress', runner_name='runner-a'),
+        ]
+        rendered = render_matrix_comment.render(jobs, 'coverage-output', TITLE, 'runner-a')
+        self.assertIn('https://github.test/j/csharp', rendered)
+        self.assertNotIn('https://github.test/j/scala', rendered)
+
+    def test_runner_name_without_matching_running_job_fails_loudly(self):
+        jobs = [
+            job('ci / build-and-test (a)'),
+            job('ci / coverage-output', conclusion=None, status='in_progress', runner_name='runner-a'),
+        ]
+        with self.assertRaises(ValueError):
+            render_matrix_comment.render(jobs, 'coverage-output', TITLE, 'runner-z')
 
     def test_no_shard_jobs_fails_loudly(self):
         with self.assertRaises(ValueError):
