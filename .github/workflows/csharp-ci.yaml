@@ -203,7 +203,7 @@ on:
       artifact-prefix:
         description: >-
           Prefix applied to per-run artifact names (coverage-percent,
-          ci-result-<shard>) to namespace them by language. Set a distinct
+          coverage-report, ci-result-<shard>) to namespace them by language. Set a distinct
           value per language when multiple CI workflows (e.g. csharp-ci and
           scala-ci) run as sibling jobs in the same caller run, so their
           run-level artifacts don't collide.
@@ -357,6 +357,16 @@ jobs:
             -o "$GITHUB_WORKSPACE/coverage/merged.cobertura.xml" \
             -f cobertura \
             "${cobertura_files[@]}"
+
+      - name: Upload merged cobertura report
+        if: ${{ matrix.coverage }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}-coverage-report
+          path: coverage/merged.cobertura.xml
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
 
       - name: Extract coverage percentage
         if: ${{ matrix.coverage }}

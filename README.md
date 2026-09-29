@@ -120,6 +120,14 @@ Produces a Cobertura coverage report, a markdown summary, and a sticky
 PR comment with per-project coverage. Uploads `.nupkg` artifacts when
 `pack: true`.
 
+The coverage shard also uploads the merged Cobertura report
+(`coverage/merged.cobertura.xml`) as the run artifact
+`<artifact-prefix>-coverage-report` (default `csharp-coverage-report`, kept
+for one day), so a downstream caller job can download it and check
+whole-solution coverage without re-running the tests. Other run artifacts
+under the same prefix: `<artifact-prefix>-coverage-percent` and
+`<artifact-prefix>-ci-result-<shard>`.
+
 A configurable matrix runs build + test across one or several runners. The
 simple `os-list` form takes a JSON array of runner labels (Linux / macOS /
 Windows) and runs coverage on the `ubuntu-latest` shard. For finer control —
