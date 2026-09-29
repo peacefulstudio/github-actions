@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-09-29
+
 ### Added
 
 - `csharp-ci.yaml` and `scala-ci.yaml` gain an optional `plumbing-runner` input (plain label or JSON array string, default empty) selecting the runner for the small plumbing jobs (`normalize matrix`, `coverage-output`, and `csharp-ci`'s `pack`). Empty follows the existing cost switch: when `matrix-mode` (or, if that is empty, the `CI_MATRIX_MODE` variable) is `cheap` and the caller repository is private or internal, they run on `["self-hosted","hetzner"]`; in every other case (public repositories, `full`, unset) they keep `ubuntu-latest`, so callers not on `cheap` see no change. Because the org-level `CI_MATRIX_MODE=cheap` variable applies to every private repository, private `@v2` consumers switch to Hetzner plumbing as soon as the floating `v2` tag moves; set `plumbing-runner: ubuntu-latest` to opt out. A `cheap` run therefore bills no GitHub-hosted minutes; each of these jobs takes seconds but is billed as a full minute.
@@ -158,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.4.1...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/peacefulstudio/github-actions/compare/v2.4.1...v2.5.0
 [2.4.1]: https://github.com/peacefulstudio/github-actions/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/peacefulstudio/github-actions/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/peacefulstudio/github-actions/compare/v2.3.3...v2.3.4
