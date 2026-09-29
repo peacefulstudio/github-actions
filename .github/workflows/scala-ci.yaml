@@ -384,6 +384,13 @@ jobs:
       coverage: ${{ steps.read.outputs.coverage }}
       matrix-status: ${{ steps.aggregate.outputs.matrix-status }}
     steps:
+      - name: Clear stale outputs from earlier jobs on this runner
+        env:
+          OUTPUT_DIR: ${{ runner.temp }}/coverage-output
+        run: |
+          set -euo pipefail
+          rm -rf "$OUTPUT_DIR"
+
       - name: Checkout CI helpers
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -395,14 +402,16 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: ${{ inputs.artifact-prefix }}-ci-result-*
-          path: ci-results
+          path: ${{ runner.temp }}/coverage-output/ci-results
           merge-multiple: true
 
       - name: Aggregate shard results
         id: aggregate
+        env:
+          RESULTS_DIR: ${{ runner.temp }}/coverage-output/ci-results
         run: |
           set -euo pipefail
-          status="$(.github-actions-helpers/scripts/aggregate_matrix_status.py ci-results)"
+          status="$(.github-actions-helpers/scripts/aggregate_matrix_status.py "$RESULTS_DIR")"
           echo "matrix-status=$status" >> "$GITHUB_OUTPUT"
 
       - name: Download coverage value
@@ -410,17 +419,18 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-percent
-          path: coverage
+          path: ${{ runner.temp }}/coverage-output/coverage
 
       - name: Read coverage value
         id: read
         env:
           COVERAGE_EXPECTED: ${{ needs.build-and-test.result == 'success' && contains(fromJSON(needs.normalize.outputs.matrix || '[]').*.coverage, true) }}
+          COVERAGE_FILE: ${{ runner.temp }}/coverage-output/coverage/coverage-percent.txt
         run: |
           set -euo pipefail
           coverage=""
-          if [ -f coverage/coverage-percent.txt ]; then
-            coverage=$(tr -d '[:space:]' < coverage/coverage-percent.txt)
+          if [ -f "$COVERAGE_FILE" ]; then
+            coverage=$(tr -d '[:space:]' < "$COVERAGE_FILE")
           fi
           echo "coverage=$coverage" >> "$GITHUB_OUTPUT"
           if [ "$COVERAGE_EXPECTED" = "true" ] && [ -z "$coverage" ]; then
@@ -431,20 +441,28 @@ jobs:
       - name: Render build-matrix table
         id: render
         if: ${{ !cancelled() && inputs.build-matrix != '' && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           MATRIX_TITLE: 'Scala build matrix'
+          COMMENT_FILE: ${{ runner.temp }}/coverage-output/build-matrix-results.md
         run: |
           set -euo pipefail
           gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" \
             | .github-actions-helpers/scripts/render_matrix_comment.py "coverage-output" "$MATRIX_TITLE" "$RUNNER_NAME" \
-            > build-matrix-results.md
+            > "$COMMENT_FILE"
 
       - name: Add build-matrix PR comment
+        id: post
         if: ${{ !cancelled() && steps.render.outcome == 'success' }}
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           recreate: true
           header: ${{ inputs.artifact-prefix }}-build-matrix
-          path: build-matrix-results.md
+          path: ${{ runner.temp }}/coverage-output/build-matrix-results.md
+
+      - name: Warn when the build-matrix comment was not posted
+        if: ${{ !cancelled() && (steps.render.outcome == 'failure' || steps.post.outcome == 'failure') }}
+        run: echo "::warning::the build-matrix PR comment was not rendered or posted; coverage-output outputs and result are unaffected"
 
