@@ -7,7 +7,7 @@ Shared reusable GitHub Actions workflows for Peaceful Studio repos.
 ## Project stewardship
 
 `github-actions` is currently developed and maintained by **Peaceful Studio
-OÜ** (Estonia, VAT EE102232996). The project is licensed under Apache-2.0
+OÜ** (Estonia). The project is licensed under Apache-2.0
 with the explicit intent of community ownership: if and when adoption
 warrants neutral governance, Peaceful Studio commits to transferring this
 repository to a community-led organisation under the same license terms.
