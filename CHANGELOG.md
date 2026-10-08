@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `csharp-ci.yaml` authenticates `dotnet restore` and `dotnet pack` against GitHub Packages with the job's `github.token` (the `build-and-test` and `pack` jobs already declare `packages: read`) instead of `secrets.BOT_GITHUB_TOKEN`, so a long-lived PAT is no longer in the environment of steps that execute pull-request-controlled MSBuild files (`Directory.Build.props`, `nuget.config`, project targets). The `BOT_GITHUB_TOKEN` secret stays declared as optional and deprecated, so callers that name it in an explicit `secrets:` block do not break; its value is ignored. A private package owned by another repository is readable with `github.token` only when the consumer repository is listed under the package's "Manage Actions access" settings with the Read role; grant that before moving `v2`, or restores of such packages fail with 401/403.
+
 ## [2.6.0] - 2026-09-29
 
 ### Added

@@ -151,12 +151,14 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 | `pack`                        | `false`                  | When true, also runs `dotnet pack` and uploads `.nupkg` artifacts.                           |
 | `pack-project`                | *(empty)*                | Project to pack. Required when `pack: true`.                                                 |
 
-**Optional secrets**:
+**Private NuGet feeds**: `dotnet restore` and `dotnet pack` authenticate to
+GitHub Packages with the job's `github.token` (`packages: read`); no secret is
+needed. For a private package owned by another repository, add the consumer
+repository under the package's "Manage Actions access" settings with the Read
+role.
 
-- `BOT_GITHUB_TOKEN` — PAT or GitHub App token with `read:packages` for
-  `dotnet restore` against private NuGet feeds (e.g. GitHub Packages).
-  Omit for public-only restores. Pass via `secrets: inherit` or an
-  explicit `secrets:` block on the caller.
+**Deprecated secret**: `BOT_GITHUB_TOKEN` is still accepted but unused, so
+callers that name it in an explicit `secrets:` block keep working.
 
 Consumer `.github/workflows/csharp-ci.yaml`:
 

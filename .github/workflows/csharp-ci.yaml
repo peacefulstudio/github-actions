@@ -23,10 +23,11 @@ on:
     secrets:
       BOT_GITHUB_TOKEN:
         description: >-
-          PAT or GitHub App token with `read:packages` for `dotnet restore`
-          against private NuGet feeds (e.g. GitHub Packages). Optional;
-          omit for public-only restores. Pass via `secrets: inherit` or an
-          explicit `secrets:` block on the caller.
+          Deprecated and unused. `dotnet restore` and `dotnet pack` authenticate
+          to GitHub Packages with the job's `github.token` (the jobs declare
+          `packages: read`). Kept declared and optional so callers that name it
+          in an explicit `secrets:` block keep working; an inherited or passed
+          value is never exposed to the steps.
         required: false
     inputs:
       concurrency-group:
@@ -312,7 +313,7 @@ jobs:
       - name: Restore
         env:
           GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           dotnet restore
@@ -590,7 +591,7 @@ jobs:
       - name: Restore
         env:
           GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           dotnet restore
