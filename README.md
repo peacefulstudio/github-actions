@@ -155,7 +155,9 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 GitHub Packages with the job's `github.token` (`packages: read`); no secret is
 needed. For a private package owned by another repository, add the consumer
 repository under the package's "Manage Actions access" settings with the Read
-role.
+role. Grant that only to private consumer repositories: a public repository
+must resolve every package from nuget.org. On a pull request from a fork,
+`Restore` runs with an empty `GITHUB_TOKEN`, so only public sources resolve.
 
 **Deprecated secret**: `BOT_GITHUB_TOKEN` is still accepted but unused, so
 callers that name it in an explicit `secrets:` block keep working.

@@ -278,6 +278,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
@@ -293,6 +295,7 @@ jobs:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
           path: .github-actions-helpers
+          persist-credentials: false
 
       - name: Resolve dotnet-coverage version
         if: ${{ matrix.coverage }}
@@ -313,7 +316,7 @@ jobs:
       - name: Restore
         env:
           GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
         run: |
           set -euo pipefail
           dotnet restore
@@ -580,6 +583,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
@@ -591,7 +596,7 @@ jobs:
       - name: Restore
         env:
           GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
         run: |
           set -euo pipefail
           dotnet restore
