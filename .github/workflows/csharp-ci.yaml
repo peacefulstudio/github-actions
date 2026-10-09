@@ -23,10 +23,10 @@ on:
     secrets:
       BOT_GITHUB_TOKEN:
         description: >-
-          PAT or GitHub App token with `read:packages` for `dotnet restore`
-          against private NuGet feeds (e.g. GitHub Packages). Optional;
-          omit for public-only restores. Pass via `secrets: inherit` or an
-          explicit `secrets:` block on the caller.
+          Deprecated and unused. `dotnet restore` runs without any credential and
+          resolves from nuget.org. Kept declared and optional so callers that name
+          it in an explicit `secrets:` block keep working; an inherited or passed
+          value is never exposed to the steps.
         required: false
     inputs:
       concurrency-group:
@@ -262,7 +262,6 @@ jobs:
         include: ${{ fromJSON(needs.normalize.outputs.matrix) }}
     permissions:
       contents: read
-      packages: read
       pull-requests: write
     defaults:
       run:
@@ -277,6 +276,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
@@ -292,6 +293,7 @@ jobs:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
           path: .github-actions-helpers
+          persist-credentials: false
 
       - name: Resolve dotnet-coverage version
         if: ${{ matrix.coverage }}
@@ -310,9 +312,6 @@ jobs:
           "$GITHUB_WORKSPACE/.github-actions-helpers/scripts/install-dotnet-coverage.sh" "$DOTNET_COVERAGE_VERSION"
 
       - name: Restore
-        env:
-          GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           dotnet restore
@@ -553,7 +552,6 @@ jobs:
     runs-on: ${{ inputs.plumbing-runner != '' && (startsWith(inputs.plumbing-runner, '[') && fromJSON(inputs.plumbing-runner) || inputs.plumbing-runner) || ((inputs.matrix-mode != '' && inputs.matrix-mode || vars.CI_MATRIX_MODE) == 'cheap' && github.event.repository.private == true && fromJSON('["self-hosted","hetzner"]') || 'ubuntu-latest') }}
     permissions:
       contents: read
-      packages: read
     defaults:
       run:
         shell: bash
@@ -579,6 +577,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
@@ -588,9 +588,6 @@ jobs:
           global-json-file: ${{ inputs.dotnet-version == '' && ((inputs.working-directory == '.' || inputs.working-directory == '') && 'global.json' || format('{0}/global.json', inputs.working-directory)) || '' }}
 
       - name: Restore
-        env:
-          GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           dotnet restore

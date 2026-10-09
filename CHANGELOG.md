@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `csharp-ci.yaml` runs `dotnet restore` and `dotnet pack` without any credential: the `Restore` steps no longer receive `secrets.BOT_GITHUB_TOKEN` or `github.token`, so no token is in the environment of steps that execute pull-request-controlled MSBuild files (`Directory.Build.props`, `nuget.config`, project targets), and the `actions/checkout` steps set `persist-credentials: false`. Every package resolves from nuget.org; the private GitHub Packages feed is retired, so no package "Manage Actions access" grants are needed. The `BOT_GITHUB_TOKEN` secret stays declared as optional and deprecated, so callers that name it in an explicit `secrets:` block do not break; its value is ignored.
+
 ## [2.6.0] - 2026-09-29
 
 ### Added
