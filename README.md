@@ -151,13 +151,9 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 | `pack`                        | `false`                  | When true, also runs `dotnet pack` and uploads `.nupkg` artifacts.                           |
 | `pack-project`                | *(empty)*                | Project to pack. Required when `pack: true`.                                                 |
 
-**Private NuGet feeds**: `dotnet restore` and `dotnet pack` authenticate to
-GitHub Packages with the job's `github.token` (`packages: read`); no secret is
-needed. For a private package owned by another repository, add the consumer
-repository under the package's "Manage Actions access" settings with the Read
-role. Grant that only to private consumer repositories: a public repository
-must resolve every package from nuget.org. On a pull request from a fork,
-`Restore` runs with an empty `GITHUB_TOKEN`, so only public sources resolve.
+**Restore is credential-free**: `dotnet restore` and `dotnet pack` run with no
+token and resolve every package from nuget.org. The private GitHub Packages feed
+is retired, so no package grants are needed.
 
 **Deprecated secret**: `BOT_GITHUB_TOKEN` is still accepted but unused, so
 callers that name it in an explicit `secrets:` block keep working.

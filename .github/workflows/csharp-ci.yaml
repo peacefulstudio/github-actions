@@ -23,10 +23,9 @@ on:
     secrets:
       BOT_GITHUB_TOKEN:
         description: >-
-          Deprecated and unused. `dotnet restore` and `dotnet pack` authenticate
-          to GitHub Packages with the job's `github.token` (the jobs declare
-          `packages: read`). Kept declared and optional so callers that name it
-          in an explicit `secrets:` block keep working; an inherited or passed
+          Deprecated and unused. `dotnet restore` runs without any credential and
+          resolves from nuget.org. Kept declared and optional so callers that name
+          it in an explicit `secrets:` block keep working; an inherited or passed
           value is never exposed to the steps.
         required: false
     inputs:
@@ -263,7 +262,6 @@ jobs:
         include: ${{ fromJSON(needs.normalize.outputs.matrix) }}
     permissions:
       contents: read
-      packages: read
       pull-requests: write
     defaults:
       run:
@@ -314,9 +312,6 @@ jobs:
           "$GITHUB_WORKSPACE/.github-actions-helpers/scripts/install-dotnet-coverage.sh" "$DOTNET_COVERAGE_VERSION"
 
       - name: Restore
-        env:
-          GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
         run: |
           set -euo pipefail
           dotnet restore
@@ -557,7 +552,6 @@ jobs:
     runs-on: ${{ inputs.plumbing-runner != '' && (startsWith(inputs.plumbing-runner, '[') && fromJSON(inputs.plumbing-runner) || inputs.plumbing-runner) || ((inputs.matrix-mode != '' && inputs.matrix-mode || vars.CI_MATRIX_MODE) == 'cheap' && github.event.repository.private == true && fromJSON('["self-hosted","hetzner"]') || 'ubuntu-latest') }}
     permissions:
       contents: read
-      packages: read
     defaults:
       run:
         shell: bash
@@ -594,9 +588,6 @@ jobs:
           global-json-file: ${{ inputs.dotnet-version == '' && ((inputs.working-directory == '.' || inputs.working-directory == '') && 'global.json' || format('{0}/global.json', inputs.working-directory)) || '' }}
 
       - name: Restore
-        env:
-          GITHUB_USERNAME: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ (!github.event.pull_request || github.event.pull_request.head.repo.full_name == github.repository) && github.token || '' }}
         run: |
           set -euo pipefail
           dotnet restore
