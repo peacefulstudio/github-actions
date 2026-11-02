@@ -182,7 +182,7 @@ jobs:
       matrix: ${{ steps.compute.outputs.matrix }}
     steps:
       - name: Checkout CI helpers
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
@@ -231,16 +231,16 @@ jobs:
         run: git config --system core.longpaths true
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: ${{ inputs.java-distribution }}
           java-version: ${{ inputs.java-version }}
 
       - name: Cache sbt
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.sbt
@@ -251,7 +251,7 @@ jobs:
             ${{ runner.os }}-sbt-
 
       - name: Setup sbt
-        uses: sbt/setup-sbt@4ed7b7ec4bfa2074fe48554c09e341267397247c # v1.2.0
+        uses: sbt/setup-sbt@b113b960ba361e87e08ce02a390d51871b7ee459 # v1.5.13
 
       - name: Build, test, coverage report
         env:
@@ -271,7 +271,7 @@ jobs:
 
       - name: Checkout CI helpers
         if: ${{ matrix.coverage }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
@@ -289,7 +289,7 @@ jobs:
 
       - name: Upload coverage value
         if: ${{ matrix.coverage }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-percent
           path: coverage/coverage-percent.txt
@@ -326,7 +326,7 @@ jobs:
 
       - name: Add Coverage PR Comment
         if: ${{ matrix.coverage && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           recreate: true
           header: ${{ inputs.coverage-pr-comment-header }}
@@ -345,7 +345,7 @@ jobs:
 
       - name: Upload Cobertura coverage artifact
         if: ${{ matrix.coverage }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.coverage-artifact-name }}
           path: ${{ inputs.working-directory }}/${{ inputs.cobertura-path }}
@@ -364,7 +364,7 @@ jobs:
 
       - name: Upload shard result
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-ci-result-${{ matrix.name }}
           path: ci-result/${{ matrix.name }}.txt
@@ -392,14 +392,14 @@ jobs:
           rm -rf "$OUTPUT_DIR"
 
       - name: Checkout CI helpers
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
           path: .github-actions-helpers
 
       - name: Download shard results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ inputs.artifact-prefix }}-ci-result-*
           path: ${{ runner.temp }}/coverage-output/ci-results
@@ -416,7 +416,7 @@ jobs:
 
       - name: Download coverage value
         if: ${{ needs.build-and-test.result == 'success' && contains(fromJSON(needs.normalize.outputs.matrix || '[]').*.coverage, true) }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-percent
           path: ${{ runner.temp }}/coverage-output/coverage
@@ -456,7 +456,7 @@ jobs:
         id: post
         if: ${{ !cancelled() && steps.render.outcome == 'success' }}
         continue-on-error: true
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           recreate: true
           header: ${{ inputs.artifact-prefix }}-build-matrix
