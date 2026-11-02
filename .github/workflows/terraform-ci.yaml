@@ -76,7 +76,7 @@ jobs:
       runner: ${{ steps.pick.outputs.runner }}
     steps:
       - name: Checkout CI helpers
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
@@ -111,7 +111,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -286,7 +286,7 @@ jobs:
 
       - name: Add test summary PR comment
         if: steps.comment-path.outputs.exists == 'true'
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           recreate: true
           header: ${{ inputs.pr-comment-header }}

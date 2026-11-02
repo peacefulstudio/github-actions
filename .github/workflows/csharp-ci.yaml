@@ -225,7 +225,7 @@ jobs:
       matrix: ${{ steps.compute.outputs.matrix }}
     steps:
       - name: Checkout CI helpers
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           # job.workflow_sha pins helpers to the exact commit of this called workflow, so SHA-pinned callers don't get v1-floating helpers
@@ -275,12 +275,12 @@ jobs:
         run: git config --system core.longpaths true
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         # actions/setup-dotnet installs BOTH dotnet-version and global-json-file when both are non-empty, and hard-fails on a missing global-json-file path — so the global.json path is only passed when no explicit version overrides it
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
@@ -288,7 +288,7 @@ jobs:
 
       - name: Checkout CI helpers
         if: ${{ matrix.coverage }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
@@ -359,7 +359,7 @@ jobs:
 
       - name: Upload merged cobertura report
         if: ${{ matrix.coverage }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-report
           path: coverage/merged.cobertura.xml
@@ -377,7 +377,7 @@ jobs:
 
       - name: Upload coverage value
         if: ${{ matrix.coverage }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-percent
           path: coverage/coverage-percent.txt
@@ -413,7 +413,7 @@ jobs:
 
       - name: Add Coverage PR Comment
         if: ${{ matrix.coverage && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           recreate: true
           header: ${{ inputs.coverage-pr-comment-header }}
@@ -443,7 +443,7 @@ jobs:
 
       - name: Upload shard result
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-ci-result-${{ matrix.name }}
           path: ci-result/${{ matrix.name }}.txt
@@ -471,14 +471,14 @@ jobs:
           rm -rf "$OUTPUT_DIR"
 
       - name: Checkout CI helpers
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
           ref: ${{ job.workflow_sha }}
           path: .github-actions-helpers
 
       - name: Download shard results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ${{ inputs.artifact-prefix }}-ci-result-*
           path: ${{ runner.temp }}/coverage-output/ci-results
@@ -495,7 +495,7 @@ jobs:
 
       - name: Download coverage value
         if: ${{ needs.build-and-test.result == 'success' && contains(fromJSON(needs.normalize.outputs.matrix || '[]').*.coverage, true) }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ inputs.artifact-prefix }}-coverage-percent
           path: ${{ runner.temp }}/coverage-output/coverage
@@ -535,7 +535,7 @@ jobs:
         id: post
         if: ${{ !cancelled() && steps.render.outcome == 'success' }}
         continue-on-error: true
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           recreate: true
           header: ${{ inputs.artifact-prefix }}-build-matrix
@@ -576,12 +576,12 @@ jobs:
           esac
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         # actions/setup-dotnet installs BOTH dotnet-version and global-json-file when both are non-empty, and hard-fails on a missing global-json-file path — so the global.json path is only passed when no explicit version overrides it
         with:
           dotnet-version: ${{ inputs.dotnet-version }}
@@ -618,7 +618,7 @@ jobs:
           echo "path=$path" >> "$GITHUB_OUTPUT"
 
       - name: Upload nupkg artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-name }}
           path: ${{ steps.artifact-path.outputs.path }}
