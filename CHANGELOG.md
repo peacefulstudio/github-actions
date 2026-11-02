@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-02
+
+### Changed
+
+- Every third-party action is bumped to its latest release: `actions/checkout` v6.0.2 -> v7.0.1, `actions/setup-dotnet` v5.2.0 -> v6.0.0, `actions/setup-go` v6.4.0 -> v7.0.0, `actions/setup-java` v5.2.0 -> v6.1.0, `actions/cache` v5.0.5 -> v6.1.0, `sbt/setup-sbt` v1.2.0 -> v1.5.13, `actions/upload-artifact` v7.0.1 -> v7.0.2, `actions/download-artifact` v8.0.1 -> v8.0.2 and `marocchino/sticky-pull-request-comment` v3.0.4 -> v3.0.5 (`irongut/CodeCoverageSummary`, `NuGet/login` and `hashicorp/setup-terraform` were already current). No input, output or secret of any workflow changes, and every JavaScript action runs on node24 before and after. Two bumps are visible to callers. `csharp-ci.yaml`, `csharp-publish-public.yaml` and the `csharp-publish` action resolve the SDK from the caller's `global.json` through `actions/setup-dotnet`, and v6 honours `rollForward`: `latestFeature` installs the newest `major.minor` SDK as before, but `latestPatch`, `latestMinor` and `latestMajor` now roll forward instead of installing the exact `sdk.version`, and a `rollForward` paired with a `sdk.version` that is not a full SDK version (such as `10.0` or `8.0.0`) fails the setup step. `scala-ci.yaml` passes no `sbt-runner-version` to `sbt/setup-sbt`, whose default launcher moves from sbt 1.12.11 to 2.0.12; builds that pin their sbt version in `project/build.properties` (which the README already requires) keep running that version, and the launcher's disk-cache key now includes the runner architecture and a weekly stamp, so sbt caches go cold once. `actions/setup-java` v6 registers a Java problem matcher, so compiler diagnostics appear as PR annotations, resolves `zulu` through the Azul metadata API, and no longer accepts the retired AdoptOpenJDK distributions, so a `scala-ci.yaml` caller passing `java-distribution: adopt`, `adopt-hotspot` or `adopt-openj9` now fails in the JDK setup step; pass `temurin` (for `adopt` and `adopt-hotspot`) or `semeru` (for `adopt-openj9`) instead. No repository in the organisation passes that input today.
+
+## [2.7.0] - 2026-10-12
+
 ### Changed
 
 - `csharp-ci.yaml` runs `dotnet restore` and `dotnet pack` without any credential: the `Restore` steps no longer receive `secrets.BOT_GITHUB_TOKEN` or `github.token`, so no token is in the environment of steps that execute pull-request-controlled MSBuild files (`Directory.Build.props`, `nuget.config`, project targets), and the `actions/checkout` steps set `persist-credentials: false`. Every package resolves from nuget.org; the private GitHub Packages feed is retired, so no package "Manage Actions access" grants are needed. The `BOT_GITHUB_TOKEN` secret stays declared as optional and deprecated, so callers that name it in an explicit `secrets:` block do not break; its value is ignored.
-- Every third-party action is bumped to its latest release: `actions/checkout` v6.0.2 -> v7.0.1, `actions/setup-dotnet` v5.2.0 -> v6.0.0, `actions/setup-go` v6.4.0 -> v7.0.0, `actions/setup-java` v5.2.0 -> v6.1.0, `actions/cache` v5.0.5 -> v6.1.0, `sbt/setup-sbt` v1.2.0 -> v1.5.13, `actions/upload-artifact` v7.0.1 -> v7.0.2, `actions/download-artifact` v8.0.1 -> v8.0.2 and `marocchino/sticky-pull-request-comment` v3.0.4 -> v3.0.5 (`irongut/CodeCoverageSummary`, `NuGet/login` and `hashicorp/setup-terraform` were already current). No input, output or secret of any workflow changes, and every JavaScript action runs on node24 before and after. Two bumps are visible to callers. `csharp-ci.yaml`, `csharp-publish-public.yaml` and the `csharp-publish` action resolve the SDK from the caller's `global.json` through `actions/setup-dotnet`, and v6 honours `rollForward`: `latestFeature` installs the newest `major.minor` SDK as before, but `latestPatch`, `latestMinor` and `latestMajor` now roll forward instead of installing the exact `sdk.version`, and a `rollForward` paired with a `sdk.version` that is not a full SDK version (such as `10.0` or `8.0.0`) fails the setup step. `scala-ci.yaml` passes no `sbt-runner-version` to `sbt/setup-sbt`, whose default launcher moves from sbt 1.12.11 to 2.0.12; builds that pin their sbt version in `project/build.properties` (which the README already requires) keep running that version, and the launcher's disk-cache key now includes the runner architecture and a weekly stamp, so sbt caches go cold once. `actions/setup-java` v6 registers a Java problem matcher, so compiler diagnostics appear as PR annotations, resolves `zulu` through the Azul metadata API, and no longer accepts the retired AdoptOpenJDK distributions, so a `scala-ci.yaml` caller passing `java-distribution: adopt`, `adopt-hotspot` or `adopt-openj9` now fails in the JDK setup step; pass `temurin` (for `adopt` and `adopt-hotspot`) or `semeru` (for `adopt-openj9`) instead. No repository in the organisation passes that input today.
 
 ## [2.6.0] - 2026-09-29
 
@@ -171,7 +178,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/peacefulstudio/github-actions/compare/v2.7.0...v2.8.0
+[2.7.0]: https://github.com/peacefulstudio/github-actions/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/peacefulstudio/github-actions/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/peacefulstudio/github-actions/compare/v2.4.1...v2.5.0
 [2.4.1]: https://github.com/peacefulstudio/github-actions/compare/v2.4.0...v2.4.1
