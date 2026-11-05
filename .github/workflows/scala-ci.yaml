@@ -219,6 +219,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      SBT_LAUNCHER_VERSION: 2.0.12
+      SBT_LAUNCHER_SHA256: 73f9c4a10584cde3d37d773e2b38d2fc4348c6cef8d88da8b7dd41e7d5f614d7
     defaults:
       run:
         shell: bash
@@ -250,8 +253,53 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sbt-
 
-      - name: Setup sbt
-        uses: sbt/setup-sbt@b113b960ba361e87e08ce02a390d51871b7ee459 # v1.5.13
+      - name: Restore sbt launcher
+        id: sbt-launcher-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/sbt-launcher
+          key: sbt-launcher-${{ runner.os }}-${{ runner.arch }}-${{ env.SBT_LAUNCHER_VERSION }}
+
+      - name: Download sbt launcher
+        if: steps.sbt-launcher-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/sbt-${SBT_LAUNCHER_VERSION}.zip"
+          curl --fail --location --silent --show-error \
+            --connect-timeout 15 --max-time 180 \
+            --output "$archive" \
+            "https://github.com/sbt/sbt/releases/download/v${SBT_LAUNCHER_VERSION}/sbt-${SBT_LAUNCHER_VERSION}.zip"
+          if command -v sha256sum >/dev/null 2>&1; then
+            actual=$(sha256sum "$archive" | cut -d ' ' -f 1)
+          else
+            actual=$(shasum -a 256 "$archive" | cut -d ' ' -f 1)
+          fi
+          if [ "$actual" != "$SBT_LAUNCHER_SHA256" ]; then
+            echo "::error::sbt-${SBT_LAUNCHER_VERSION}.zip SHA-256 is ${actual}, expected ${SBT_LAUNCHER_SHA256}"
+            exit 1
+          fi
+          rm -rf "$HOME/.cache/sbt-launcher"
+          mkdir -p "$HOME/.cache/sbt-launcher"
+          unzip -q "$archive" -d "$HOME/.cache/sbt-launcher"
+          test -f "$HOME/.cache/sbt-launcher/sbt/bin/sbt"
+
+      - name: Save sbt launcher
+        if: steps.sbt-launcher-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/sbt-launcher
+          key: sbt-launcher-${{ runner.os }}-${{ runner.arch }}-${{ env.SBT_LAUNCHER_VERSION }}
+
+      - name: Add sbt launcher to PATH
+        run: |
+          set -euo pipefail
+          launcher_bin="$HOME/.cache/sbt-launcher/sbt/bin"
+          test -f "$launcher_bin/sbt"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cygpath -w "$launcher_bin" >> "$GITHUB_PATH"
+          else
+            echo "$launcher_bin" >> "$GITHUB_PATH"
+          fi
 
       - name: Build, test, coverage report
         env:
