@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-11-06
+
 ### Fixed
 
 - `scala-ci.yaml` no longer fetches sbt on every run on ephemeral runners. It replaces `sbt/setup-sbt`, whose caches are keyed on `$RUNNER_TOOL_CACHE` (a path that differs per job on ephemeral runners, so they never hit) and whose cache miss bootstraps `ampel` from GitHub releases, where the provenance fetch could time out and fail the job. It now restores the sbt launcher from `actions/cache` at the fixed path `~/.cache/sbt-launcher`, keyed on runner environment (`github-hosted` or `self-hosted`), OS, architecture and launcher version, and, when no launcher is in that directory after the restore, downloads `sbt-2.0.12.zip` from the sbt GitHub release with `curl --fail --location` and connect and total timeouts, checks it against a pinned SHA-256 (the job fails on a mismatch, on every runner OS, where `setup-sbt` verified the signature on Linux only), unpacks it and saves the cache (only when it installed). The launcher is still 2.0.12 and the sbt version a build runs is still controlled by `project/build.properties`. No input, output or secret changes. `setup-sbt`'s sbt 2.x disk cache (`~/.cache/sbt`) is no longer restored; builds on sbt 1.x never used it, and the existing `Cache sbt` step is unchanged.
@@ -182,7 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.8.1...HEAD
+[2.8.1]: https://github.com/peacefulstudio/github-actions/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/peacefulstudio/github-actions/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/peacefulstudio/github-actions/compare/v2.6.0...v2.7.0
 [2.6.0]: https://github.com/peacefulstudio/github-actions/compare/v2.5.0...v2.6.0
