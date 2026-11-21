@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Peaceful Studio OÜ
+# SPDX-License-Identifier: Apache-2.0
+
 def package_name: split("/")[0];
 def package_version: split("/")[1];
 def watched: test("^(microsoft\\.extensions|microsoft\\.aspnetcore)\\."; "i");
