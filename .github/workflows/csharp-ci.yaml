@@ -200,6 +200,19 @@ on:
         required: false
         type: string
         default: ''
+      net10-package-exceptions:
+        description: >-
+          Comma or whitespace separated `package@major` pairs (for example
+          `Microsoft.Extensions.Options@11`) that the net10.0 package guard
+          accepts. After restore, the guard fails every `build-and-test` shard
+          when a packable project's net10.0 target (a RID-specific
+          `net10.0/<rid>` target included) resolves a `Microsoft.Extensions.*`
+          or `Microsoft.AspNetCore.*` package at major 11 or higher, directly
+          or transitively. The package id match is case-insensitive and the
+          major must match exactly. Empty accepts nothing.
+        required: false
+        type: string
+        default: ''
       artifact-prefix:
         description: >-
           Prefix applied to per-run artifact names (coverage-percent,
@@ -287,7 +300,6 @@ jobs:
           global-json-file: ${{ inputs.dotnet-version == '' && ((inputs.working-directory == '.' || inputs.working-directory == '') && 'global.json' || format('{0}/global.json', inputs.working-directory)) || '' }}
 
       - name: Checkout CI helpers
-        if: ${{ matrix.coverage }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: peacefulstudio/github-actions
@@ -315,6 +327,13 @@ jobs:
         run: |
           set -euo pipefail
           dotnet restore
+
+      - name: Guard net10.0 package majors
+        env:
+          NET10_PACKAGE_EXCEPTIONS: ${{ inputs.net10-package-exceptions }}
+        run: |
+          set -euo pipefail
+          "$GITHUB_WORKSPACE/.github-actions-helpers/scripts/guard-net10-package-majors.sh"
 
       - name: Build
         run: |
