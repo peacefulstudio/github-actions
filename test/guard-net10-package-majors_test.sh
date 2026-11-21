@@ -71,6 +71,21 @@ XML
   fi
 }
 
+add_release_only_packable_project() {
+  local repo="$1" name="$2" assets="$3"
+  mkdir -p "$repo/$name/obj"
+  cat > "$repo/$name/$name.csproj" <<XML
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsPackable Condition="'\$(Configuration)' == 'Release'">true</IsPackable>
+  </PropertyGroup>
+</Project>
+XML
+  printf '%s\n' "$assets" > "$repo/$name/obj/project.assets.json"
+}
+
 run_guard() {
   local repo="$1" exceptions="${2:-}" path_prefix="${3:-}" errf
   errf="$(mktemp)"
@@ -269,6 +284,37 @@ repo="$(new_repo)"
 add_project "$repo" Lib "  NET10.0  " true "$SERILOG_ON_EXTENSIONS_11"
 run_guard "$repo"
 check "net10.0 spelled in upper case with padding exits 1" 1 "$rc"
+
+for spelling in True TRUE tRuE; do
+  repo="$(new_repo)"
+  add_project "$repo" Lib "net10.0;net11.0" "$spelling" "$SERILOG_ON_EXTENSIONS_11"
+  run_guard "$repo"
+  check "IsPackable spelled $spelling exits 1 on an offender" 1 "$rc"
+done
+
+repo="$(new_repo)"
+add_release_only_packable_project "$repo" Lib "$SERILOG_ON_EXTENSIONS_11"
+run_guard "$repo"
+check "project packable only in Release exits 1 on an offender" 1 "$rc"
+
+repo="$(new_repo)"
+add_project "$repo" Lib "net10.0;net11.0" true "$SERILOG_ON_EXTENSIONS_10"
+add_project "$repo" Other "net10.0" true "$SERILOG_ON_EXTENSIONS_10"
+add_project "$repo" App "net10.0" false "$SERILOG_ON_EXTENSIONS_10"
+add_project "$repo" Legacy "netstandard2.0" true "$SERILOG_ON_EXTENSIONS_10"
+run_guard "$repo"
+check "clean run exits 0" 0 "$rc"
+check_contains "clean run reports how many packable net10.0 projects it checked" "net10.0 package guard: checked 2 packable project(s)" "$out"
+
+repo="$(new_repo)"
+add_project "$repo" App "net10.0" false "$SERILOG_ON_EXTENSIONS_10"
+run_guard "$repo"
+check_contains "run with no packable net10.0 project reports zero" "net10.0 package guard: checked 0 packable project(s)" "$out"
+
+repo="$(new_repo)"
+add_project "$repo" Lib "net10.0" true ""
+run_guard "$repo"
+check_contains "unrestored project is not counted as checked" "net10.0 package guard: checked 0 packable project(s)" "$out"
 
 repo="$(new_repo)"
 add_project "$repo" Lib "net10.0;net11.0" true "$SERILOG_ON_EXTENSIONS_11"

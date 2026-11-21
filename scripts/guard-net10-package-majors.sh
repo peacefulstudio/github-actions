@@ -27,11 +27,12 @@ fi
 allowed="$(printf '%s\n' "$entries" | jq_clean -R -s 'split("\n") | map(select(length > 0) | ascii_downcase)')"
 
 failed=0
+checked=0
 while IFS= read -r project; do
   [ -n "$project" ] || continue
   display="${project#./}"
-  properties="$(dotnet msbuild "$project" -nologo -getProperty:IsPackable -getProperty:TargetFramework -getProperty:TargetFrameworks -getProperty:ProjectAssetsFile -getProperty:MSBuildProjectExtensionsPath | strip_cr)"
-  packable="$(jq_clean -r '.Properties.IsPackable' <<< "$properties")"
+  properties="$(dotnet msbuild "$project" -nologo -property:Configuration=Release -getProperty:IsPackable -getProperty:TargetFramework -getProperty:TargetFrameworks -getProperty:ProjectAssetsFile -getProperty:MSBuildProjectExtensionsPath | strip_cr)"
+  packable="$(jq_clean -r '.Properties.IsPackable | ascii_downcase' <<< "$properties")"
   frameworks=";$(jq_clean -r '.Properties.TargetFrameworks + ";" + .Properties.TargetFramework' <<< "$properties" | tr -d '[:space:]');"
   assets="$(jq_clean -r '.Properties.ProjectAssetsFile' <<< "$properties")"
   if [ -z "$assets" ]; then
@@ -47,10 +48,12 @@ while IFS= read -r project; do
     echo "::warning::$display is packable for net10.0 but has no restore assets at $assets, so its package versions were not checked"
     continue
   fi
+  checked=$((checked + 1))
   findings="$(jq_clean -r --argjson allowed "$allowed" "$filter" < "$assets" | sort -u | paste -sd ';' - | sed 's/;/; /g')"
   if [ -n "$findings" ]; then
     echo "::error::$display resolves $findings for its net10.0 target. A net10.0 package must not require Microsoft.Extensions or Microsoft.AspNetCore 11 or later; pin it to 10.x, or accept it with the net10-package-exceptions input."
     failed=1
   fi
 done < <(find . \( -name obj -o -name bin -o -name node_modules -o -name .git -o -name .github-actions-helpers \) -prune -o \( -name '*.csproj' -o -name '*.fsproj' -o -name '*.vbproj' \) -print | sort)
+echo "net10.0 package guard: checked $checked packable project(s)"
 exit "$failed"
