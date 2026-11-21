@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-11-21
+
 ### Changed
 
 - `csharp-ci.yaml` fails every `build-and-test` shard, in a new `Guard net10.0 package majors` step between `Restore` and `Build`, when a packable project's `net10.0` target resolves a `Microsoft.Extensions.*` or `Microsoft.AspNetCore.*` package at major 11 or later, direct or transitive. A library that ships a `net10.0` asset would otherwise force its consumers onto the 11.x line, and CI stayed green because `net10.0` builds and tests fine with 11.x packages. The step reads the resolved graph from each project's `obj/project.assets.json`, `net10.0/<rid>` targets included, so a minor or patch bump of any package that pulls in 11.x is caught, not only a bump of a named package. It checks only projects that MSBuild evaluates as packable in the `Release` configuration (the one `Build` and `Pack` use, `IsPackable` in any letter case) with a `net10.0` target framework (`TargetFrameworks` may use spaces, newlines or any letter case): test projects, non-packable apps and `net11.0`-only projects are untouched, and the `net11.0` target of a multi-targeted library is not read. One `::error::` annotation per project names the project, each package, its resolved version and the top-level package that pulled it in. A packable `net10.0` project with no restore assets (one outside the restored solution) gets a warning and is skipped. A passing step prints `net10.0 package guard: checked N packable project(s)` so a green run shows how many projects it covered. The scan covers the descendants of `working-directory`. New optional input `net10-package-exceptions` (default empty) takes comma or whitespace separated `package@major` pairs to accept; it reaches the step only through the environment and a malformed entry fails the step before anything is checked. The check is on by default with no caller change, so a caller whose `net10.0` target resolves 11.x goes red until it pins the package to 10.x or lists an exception. The step needs `jq`, which the GitHub-hosted images and the self-hosted Hetzner runners provide, and it strips the carriage returns `jq` and `dotnet` print under Git Bash on Windows so that a Windows shard checks the same projects as a Linux one. The helper checkout (`Checkout CI helpers`) now runs on every shard, not only the coverage shard. `scripts/guard-net10-package-majors.sh` carries the logic, and `test/guard-net10-package-majors_test.sh` runs it against fixture projects on Linux, macOS, Windows and Windows ARM in `build-and-test.yaml`.
@@ -188,7 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `csharp-ci.yaml` — .NET build / test / coverage / pack.
   - `terraform-ci.yaml` — Terraform fmt / validate / test.
 
-[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.8.1...HEAD
+[Unreleased]: https://github.com/peacefulstudio/github-actions/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/peacefulstudio/github-actions/compare/v2.8.1...v2.9.0
 [2.8.1]: https://github.com/peacefulstudio/github-actions/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/peacefulstudio/github-actions/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/peacefulstudio/github-actions/compare/v2.6.0...v2.7.0
