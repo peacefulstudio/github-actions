@@ -150,6 +150,19 @@ choosing which shard carries coverage — use `build-matrix` instead (see
 | `coverage-pr-comment-header`  | `csharp-coverage`        | Sticky-comment header (make unique per workspace if a repo calls this workflow more than once). |
 | `pack`                        | `false`                  | When true, also runs `dotnet pack` and uploads `.nupkg` artifacts.                           |
 | `pack-project`                | *(empty)*                | Project to pack. Required when `pack: true`.                                                 |
+| `net10-package-exceptions`    | *(empty)*                | Comma or whitespace separated `package@major` pairs (e.g. `Microsoft.Extensions.Options@11`) the net10.0 package guard accepts. See the net10.0 package guard note below. |
+
+**net10.0 package guard**: after restore, a `Guard net10.0 package majors` step
+fails the build when a packable project with a `net10.0` target framework
+resolves any `Microsoft.Extensions.*` or `Microsoft.AspNetCore.*` package at
+major 11 or later, directly or transitively (it reads `obj/project.assets.json`,
+including `net10.0/<rid>` targets). A `net10.0` package that requires the 11.x
+line would otherwise pull its consumers off 10.x while CI stays green. The error
+names the project, the package, its version and the top-level package that
+brought it in. Accept a known case with
+`net10-package-exceptions: 'Microsoft.Extensions.Options@11'`. Test projects,
+non-packable projects and `net11.0`-only projects are not checked. The step
+needs `jq` on the runner.
 
 **Restore is credential-free**: `dotnet restore` and `dotnet pack` run with no
 token and resolve every package from nuget.org. The private GitHub Packages feed
